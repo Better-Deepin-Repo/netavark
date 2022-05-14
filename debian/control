@@ -1,0 +1,49 @@
+Source: netavark
+Section: unknown
+Priority: optional
+Maintainer: Reinhard Tartler <siretart@tauware.de>
+Build-Depends: debhelper-compat (= 13),
+ dh-cargo (>= 25),
+ cargo:native <!nocheck>,
+ librust-anyhow-dev,
+ librust-atty-dev,
+ librust-chrono-dev,
+ librust-clap+derive-dev,
+ librust-env-logger-dev,
+ librust-futures-dev,
+ librust-humantime-dev,
+ librust-ipnet+serde-dev,
+ librust-iptables-dev,
+ librust-libc-dev,
+ librust-log-dev,
+ librust-netlink-packet-route-dev,
+ librust-nix-dev,
+ librust-rand-dev,
+ librust-rtnetlink-dev,
+ librust-serde+derive-dev,
+ librust-serde-json-dev,
+ librust-serde-value-dev,
+ librust-sha2-dev,
+ librust-simple-error-dev,
+ librust-strsim-dev,
+ librust-sysctl-dev,
+ librust-termcolor-dev,
+ librust-tokio+full-dev,
+ librust-url-dev,
+ librust-zbus-dev,
+ librust-zvariant-dev,
+ libstd-rust-dev <!nocheck>,
+ rustc:native <!nocheck>,
+Standards-Version: 4.6.0
+Homepage: https://github.com/containers/netavark
+Vcs-Browser: https://salsa.debian.org/debian/netavark
+Vcs-Git: https://salsa.debian.org/debian/netavark.git
+Rules-Requires-Root: no
+
+Package: netavark
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Enhances: podman
+Description: A rust based network stack for containers
+ Netavark is designed to work with but is also applicable
+ for other OCI container management applications.
