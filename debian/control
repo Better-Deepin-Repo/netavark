@@ -1,5 +1,5 @@
 Source: netavark
-Section: unknown
+Section: net
 Priority: optional
 Maintainer: Reinhard Tartler <siretart@tauware.de>
 Build-Depends: debhelper-compat (= 13),
