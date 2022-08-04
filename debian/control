@@ -44,6 +44,6 @@ Package: netavark
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}
 Enhances: podman
-Description: A rust based network stack for containers
+Description: Rust based network stack for containers
  Netavark is designed to work with but is also applicable
  for other OCI container management applications.
