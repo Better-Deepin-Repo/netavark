@@ -1,3 +1,10 @@
+netavark (1.0.3-2) unstable; urgency=medium
+
+  * install the netavark binary to the correct location
+  * bump standards version
+
+ -- Reinhard Tartler <siretart@tauware.de>  Fri, 05 Aug 2022 00:01:19 +0200
+
 netavark (1.0.3-1) unstable; urgency=medium
 
   * Initial release (Closes: #1009713)
