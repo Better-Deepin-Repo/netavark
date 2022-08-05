@@ -43,6 +43,7 @@ Rules-Requires-Root: no
 Package: netavark
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}
+Provides: container-network-stack (= 2)
 Enhances: podman
 Description: Rust based network stack for containers
  Netavark is designed to work with but is also applicable
