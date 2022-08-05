@@ -1,3 +1,10 @@
+netavark (1.0.3-3) unstable; urgency=medium
+
+  * Provides: container-network-stack = 2, following the Fedora versioning
+    scheme for the network stack replacement.
+
+ -- Reinhard Tartler <siretart@tauware.de>  Fri, 05 Aug 2022 14:13:51 +0200
+
 netavark (1.0.3-2) unstable; urgency=medium
 
   * install the netavark binary to the correct location
