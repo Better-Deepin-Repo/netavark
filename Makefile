@@ -10,6 +10,9 @@ LIBEXECDIR ?= ${PREFIX}/libexec
 LIBEXECPODMAN ?= ${LIBEXECDIR}/podman
 
 SELINUXOPT ?= $(shell test -x /usr/sbin/selinuxenabled && selinuxenabled && echo -Z)
+# Get crate version by parsing the line that starts with version.
+CRATE_VERSION ?= $(shell grep ^version Cargo.toml | awk '{print $$3}')
+GIT_TAG ?= $(shell git describe --tags)
 
 # Set this to any non-empty string to enable unoptimized
 # build w/ debugging features.
@@ -47,10 +50,20 @@ build: bin $(CARGO_TARGET_DIR)
 	cargo build $(release)
 	cp $(CARGO_TARGET_DIR)/$(profile)/netavark bin/netavark$(if $(debug),.debug,)
 
+.PHONY: crate-publish
+crate-publish:
+	@if [ "$(CRATE_VERSION)" != "$(GIT_TAG)" ]; then\
+		echo "Git tag is not equivalent to the version set in Cargo.toml. Please checkout the correct tag";\
+		exit 1;\
+	fi
+	@echo "It is expected that you have already done 'cargo login' before running this command. If not command may fail later"
+	cargo publish --dry-run
+	cargo publish
+
 .PHONY: clean
 clean:
 	rm -rf bin
-	if [[ "$(CARGO_TARGET_DIR)" == "targets" ]]; then rm -rf targets; fi
+	if [ "$(CARGO_TARGET_DIR)" = "targets" ]; then rm -rf targets; fi
 	$(MAKE) -C docs clean
 
 .PHONY: docs
@@ -75,15 +88,6 @@ test: unit integration
 build_unit: $(CARGO_TARGET_DIR)
 	cargo test --no-run
 
-# Test build cross-architecture
-.PHONY: build_cross
-build_cross: $(CARGO_TARGET_DIR)
-	cargo install cross
-	rustup target add aarch64-unknown-linux-gnu
-	rustup target add arm-unknown-linux-gnueabi
-	cross build --target aarch64-unknown-linux-gnu
-	cross build --target arm-unknown-linux-gnueabi
-
 .PHONY: unit
 unit: $(CARGO_TARGET_DIR)
 	cargo test
@@ -98,16 +102,17 @@ validate: $(CARGO_TARGET_DIR)
 	cargo fmt --all -- --check
 	cargo clippy -p netavark -- -D warnings
 
-.PHONY: vendor
-vendor: ## vendor everything into vendor/
-	cargo vendor
-	$(MAKE) vendor-rm-windows ## remove windows library if possible
+.PHONY: vendor-tarball
+vendor-tarball: build install.cargo-vendor-filterer
+	VERSION=$(shell bin/netavark --version | cut -f2 -d" ") && \
+	cargo vendor-filterer '--platform=*-unknown-linux-*' --format=tar.gz --prefix vendor/ && \
+	mv vendor.tar.gz netavark-v$$VERSION-vendor.tar.gz && \
+	gzip -c bin/netavark > netavark.gz && \
+	sha256sum netavark.gz netavark-v$$VERSION-vendor.tar.gz > sha256sum
 
-.PHONY: vendor-rm-windows
-vendor-rm-windows:
-	if [ -d "vendor/winapi" ]; then \
-		rm -fr vendor/winapi*gnu*/lib/*.a; \
-	fi
+.PHONY: install.cargo-vendor-filterer
+install.cargo-vendor-filterer:
+	cargo install cargo-vendor-filterer
 
 .PHONY: mock-rpm
 mock-rpm:

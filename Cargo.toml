@@ -1,9 +1,14 @@
 [package]
 name = "netavark"
-version = "1.0.3"
+version = "1.4.0"
 edition = "2018"
 authors = ["github.com/containers"]
+license = "Apache-2.0"
+readme = "README.md"
 description = "A container network stack"
+homepage = "https://github.com/containers/netavark"
+repository = "https://github.com/containers/netavark"
+categories = ["containers", "networking", "podman"]
 exclude = ["/.cirrus.yml", "/.github/*", "/hack/*"]
 build = "build.rs"
 
@@ -14,28 +19,25 @@ deps-serde = ["chrono/serde", "url/serde"]
 
 [dependencies]
 anyhow = "1.0"
-chrono = "0.4.7"
-clap = { version = "3.0.12", features = ["derive"] }
-env_logger = "0.9.0"
+clap = { version = "3.2.23", features = ["derive"] }
+env_logger = "0.10.0"
 ipnet = { version = "2", features = ["serde"] }
 iptables = "0.5"
 libc = "0.2"
 log = "0.4.17"
-serde = { version = "1.0.137", features = ["derive"], optional = true }
+serde = { version = "1.0.149", features = ["derive"], optional = true }
 serde-value = "0.7.0"
-serde_json = "1.0.81"
-simple-error = "0.2.3"
-sysctl = "0.4.4"
-url = "2.1.0"
-zbus = "2.2.0"
-rtnetlink = "0.9.0"
-futures = "0.3.21"
-nix = "0.24.1"
+serde_json = "1.0.89"
+sysctl = "0.5.2"
+url = "2.3.1"
+zbus = { version = "3.6.1" }
+nix = "0.26.1"
 rand = "0.8.5"
-tokio = { version = "1.16.1", features = ["full"] }
-zvariant = "3.2.0"
-sha2 = "0.10.1"
-netlink-packet-route = "0.11"
+sha2 = "0.10.6"
+netlink-packet-route = "0.13"
+netlink-packet-core = "0.4.2"
+fs2 = "0.4.3"
+netlink-sys = "0.8.3"
 
 [build-dependencies]
-chrono = "*"
+chrono = { version = "0.4.22", default-features = false, features = ["clock"] }

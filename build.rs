@@ -1,4 +1,5 @@
-use chrono::Utc;
+use chrono::{DateTime, NaiveDateTime, Utc};
+use std::env;
 use std::process::Command;
 
 fn main() {
@@ -6,7 +7,17 @@ fn main() {
     println!("cargo:rerun-if-changed=build.rs");
 
     // get timestamp
-    let now = Utc::now();
+    let now = match env::var("SOURCE_DATE_EPOCH") {
+        Ok(val) => {
+            let naive = match NaiveDateTime::from_timestamp_opt(val.parse::<i64>().unwrap(), 0) {
+                Some(n) => n,
+                None => Utc::now().naive_utc(),
+            };
+            let datetime: DateTime<Utc> = DateTime::from_utc(naive, Utc);
+            datetime
+        }
+        Err(_) => Utc::now(),
+    };
     println!("cargo:rustc-env=BUILD_TIMESTAMP={}", now.to_rfc3339());
 
     // get rust target triple from TARGET env
@@ -16,10 +27,10 @@ fn main() {
     );
 
     // get git commit
-    let command = Command::new("git").args(&["rev-parse", "HEAD"]).output();
+    let command = Command::new("git").args(["rev-parse", "HEAD"]).output();
     let commit = match command {
         Ok(output) => String::from_utf8(output.stdout).unwrap(),
-        // if error, e.g. build from source with git repo, just show empty string
+        // if error, e.g. build from source without git repo, just show empty string
         Err(_) => "".to_string(),
     };
     println!("cargo:rustc-env=GIT_COMMIT={}", commit);

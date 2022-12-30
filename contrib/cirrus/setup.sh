@@ -19,12 +19,20 @@ msg "************************************************************"
 msg "Setting up runtime environment"
 msg "************************************************************"
 
-dnf -y install make automake gcc gcc-c++ kernel-devel
-
 show_env_vars
 
-if [[ "$CIRRUS_TASK_NAME" == "build_cross" ]]; then
-	# Setup short-name for rustembedded/cross
-	# TODO: We can move this to quay.io if we reach rate-limits, hopefully that's not gonna happen for netavark
-	echo '  "rustembedded/cross" = "docker.io/rustembedded/cross"'  >> /etc/containers/registries.conf.d/000-shortnames.conf
+req_env_vars AARDVARK_DNS_URL
+
+showrun curl --fail --location -o /tmp/aardvark-dns.zip "$AARDVARK_DNS_URL"
+mkdir -p /usr/libexec/podman
+cd /usr/libexec/podman
+rm -f aardvark-dns*
+showrun unzip -o /tmp/aardvark-dns.zip
+if [[ $(uname -m) != "x86_64" ]]; then
+    showrun mv aardvark-dns.$(uname -m)-unknown-linux-gnu aardvark-dns
 fi
+showrun chmod a+x /usr/libexec/podman/aardvark-dns
+
+# Warning, this isn't the end.  An exit-handler is installed to finalize
+# setup of env. vars.  This is required for runner.sh to operate properly.
+# See complete_setup() in lib.sh for details.
