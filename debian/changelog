@@ -1,3 +1,9 @@
+netavark (1.4.0-1) unstable; urgency=medium
+
+  * New upstream release
+
+ -- Reinhard Tartler <siretart@tauware.de>  Fri, 30 Dec 2022 07:22:15 -0500
+
 netavark (1.0.3-4) unstable; urgency=medium
 
   * Fix FTBFS, bump nix version, thanks to Lucas Nussbaum (Closes: #1020122).
