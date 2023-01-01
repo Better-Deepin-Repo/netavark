@@ -1,30 +1,35 @@
---- a/Cargo.toml
-+++ b/Cargo.toml
-@@ -23,19 +23,19 @@
+Index: netavark/Cargo.toml
+===================================================================
+--- netavark.orig/Cargo.toml
++++ netavark/Cargo.toml
+@@ -20,21 +20,21 @@ deps-serde = ["chrono/serde", "url/serde
+ [dependencies]
+ anyhow = "1.0"
+ clap = { version = "3.2.23", features = ["derive"] }
+-env_logger = "0.10.0"
++env_logger = "0.9"
+ ipnet = { version = "2", features = ["serde"] }
+ iptables = "0.5"
+ libc = "0.2"
  log = "0.4.17"
- serde = { version = "1.0.137", features = ["derive"], optional = true }
- serde-value = "0.7.0"
--serde_json = "1.0.81"
-+serde_json = "1.0.80"
- simple-error = "0.2.3"
- sysctl = "0.4.4"
- url = "2.1.0"
--zbus = "2.2.0"
--rtnetlink = "0.9.0"
--futures = "0.3.21"
--nix = "0.24.1"
+-serde = { version = "1.0.149", features = ["derive"], optional = true }
+-serde-value = "0.7.0"
+-serde_json = "1.0.89"
+-sysctl = "0.5.2"
++serde = { version = "1", features = ["derive"], optional = true }
++serde-value = "0.7"
++serde_json = "1"
++sysctl = "0.4"
+ url = "2.3.1"
+-zbus = { version = "3.6.1" }
++zbus = { version = "1.9" }
+ nix = "0.26.1"
 -rand = "0.8.5"
-+zbus = "1.9.1"
-+rtnetlink = "0.10"
-+futures = "0.3"
-+nix = "0.25"
+-sha2 = "0.10.6"
+-netlink-packet-route = "0.13"
 +rand = "0.8"
- tokio = { version = "1.16.1", features = ["full"] }
--zvariant = "3.2.0"
-+zvariant = "2"
- sha2 = "0.10.1"
--netlink-packet-route = "0.11"
++sha2 = "0.10"
 +netlink-packet-route = "0.12"
- 
- [build-dependencies]
- chrono = "*"
+ netlink-packet-core = "0.4.2"
+ fs2 = "0.4.3"
+ netlink-sys = "0.8.3"
