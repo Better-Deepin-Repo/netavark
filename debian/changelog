@@ -1,8 +1,14 @@
 netavark (1.4.0-1) unstable; urgency=medium
 
   * New upstream release
+  * Allow cross-compilation by relaxing build-dep on libstd-rust-dev,
+    Closes: #1025361
+  * Bug fix: "FTBFS: dh_auto_test: error: /usr/share/cargo/bin/cargo build
+    returned exit code 101", thanks to Lucas Nussbaum (Closes: #1027624).
+  * Break on older versions of aardvark-dns, the must match minor versions.
+  * Invoke test suite
 
- -- Reinhard Tartler <siretart@tauware.de>  Fri, 30 Dec 2022 07:22:15 -0500
+ -- Reinhard Tartler <siretart@tauware.de>  Mon, 02 Jan 2023 08:45:36 -0500
 
 netavark (1.0.3-4) unstable; urgency=medium
 
