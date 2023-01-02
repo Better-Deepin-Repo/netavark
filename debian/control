@@ -33,7 +33,7 @@ Build-Depends: debhelper-compat (= 13),
  librust-url-dev,
  librust-zbus-dev (>= 1.9.2-4),
  librust-zvariant-dev,
- libstd-rust-dev <!nocheck>,
+ libstd-rust-dev,
  rustc:native <!nocheck>,
 Standards-Version: 4.6.1
 Homepage: https://github.com/containers/netavark
