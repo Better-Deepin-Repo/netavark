@@ -1,0 +1,3 @@
+Test-Command: env NETAVARK=/usr/lib/podman/netavark bats test/
+Depends: @, bats, jq, util-linux, iptables, netcat-traditional, firewalld
+Restrictions: allow-stderr, needs-root, flaky
