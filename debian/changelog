@@ -1,3 +1,14 @@
+netavark (1.4.0-2) unstable; urgency=medium
+
+  [ Peter Michael Green ]
+  * Update debian dependency on clap to match cargo dependency,
+    closes: #1028657
+
+  [ Reinhard Tartler ]
+  * Upload to unstable
+
+ -- Reinhard Tartler <siretart@tauware.de>  Sat, 14 Jan 2023 07:49:05 -0500
+
 netavark (1.4.0-1) unstable; urgency=medium
 
   * New upstream release
