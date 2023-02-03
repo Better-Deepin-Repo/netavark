@@ -1,3 +1,10 @@
+netavark (1.4.0-3) unstable; urgency=medium
+
+  * Install aardvark-dns by default with netavark
+  * Allow netavark to find aardvark-dns by default, Closes: #1030302
+
+ -- Reinhard Tartler <siretart@tauware.de>  Fri, 03 Feb 2023 06:31:00 -0500
+
 netavark (1.4.0-2) unstable; urgency=medium
 
   [ Peter Michael Green ]
