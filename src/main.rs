@@ -1,5 +1,6 @@
 use clap::{Parser, Subcommand};
 
+use netavark::commands::dhcp_proxy;
 use netavark::commands::setup;
 use netavark::commands::teardown;
 use netavark::commands::update;
@@ -20,6 +21,9 @@ struct Opts {
     #[clap(short, long)]
     /// Path to the aardvark-dns binary.
     aardvark_binary: Option<String>,
+    /// Path to netavark plugin directories, can be set multiple times to specify more than one directory.
+    #[clap(long, long = "plugin-directory")]
+    plugin_directories: Option<Vec<String>>,
     /// Netavark trig command
     #[clap(subcommand)]
     subcmd: SubCommand,
@@ -35,6 +39,8 @@ enum SubCommand {
     Teardown(teardown::Teardown),
     /// Display info about netavark.
     Version(version::Version),
+    /// Start dhcp-proxy
+    DHCPProxy(dhcp_proxy::Opts),
 }
 
 fn main() {
@@ -42,16 +48,29 @@ fn main() {
     let opts = Opts::parse();
 
     // aardvark config directory must be supplied by parent or it defaults to /tmp/aardvark
-    let config = opts.config.unwrap_or_else(|| String::from("/tmp"));
+    let config = opts.config.as_deref().unwrap_or("/tmp");
     let rootless = opts.rootless.unwrap_or(false);
     let aardvark_bin = opts
         .aardvark_binary
         .unwrap_or_else(|| String::from("/usr/libexec/podman/aardvark-dns"));
     let result = match opts.subcmd {
-        SubCommand::Setup(setup) => setup.exec(opts.file, config, aardvark_bin, rootless),
-        SubCommand::Teardown(teardown) => teardown.exec(opts.file, config, aardvark_bin, rootless),
-        SubCommand::Update(update) => update.exec(config, aardvark_bin, rootless),
+        SubCommand::Setup(setup) => setup.exec(
+            opts.file,
+            config,
+            aardvark_bin,
+            opts.plugin_directories,
+            rootless,
+        ),
+        SubCommand::Teardown(teardown) => teardown.exec(
+            opts.file,
+            config,
+            aardvark_bin,
+            opts.plugin_directories,
+            rootless,
+        ),
+        SubCommand::Update(mut update) => update.exec(config, aardvark_bin, rootless),
         SubCommand::Version(version) => version.exec(),
+        SubCommand::DHCPProxy(proxy) => dhcp_proxy::serve(proxy),
     };
 
     match result {

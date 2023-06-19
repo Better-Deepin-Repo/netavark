@@ -1,5 +1,16 @@
 # Release Notes
 
+## v1.6.0
+* Now supports a driver plugin module for user defined network drivers
+* Initial MACVLAN DHCP support (additional unit file required for packagers)
+* Dependency updates
+
+## v1.5.0
+* Removed crossbeam-utils
+* Dependency updates
+* Preliminary macvlan dhcp support (not fully supported yet)
+* Addition of ipvlan support
+
 ## v1.4.0
 * Added network update command
 * Corrected issue #491 to only teardown network forwarding when on complete teardown only
@@ -19,7 +30,7 @@
 
 ## v1.2.0
 * Reworked how netavark calls aardvark
-* Implemented locking when commiting
+* Implemented locking when committing
 * Remove bridge only when no containers are attached
 * Updated versions of libraries where possible
 

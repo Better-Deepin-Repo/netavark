@@ -146,7 +146,7 @@ impl driver::NetworkDriver for Bridge<'_> {
                 .dns_server_ips
                 .insert(data.ipam.nameservers.clone());
             // Note: this is being added so podman setup is backward compatible with the design
-            // which we had with dnsname/dnsmasq. I belive this can be fixed in later releases.
+            // which we had with dnsname/dnsmasq. I believe this can be fixed in later releases.
             let _ = response
                 .dns_search_domains
                 .insert(vec![constants::PODMAN_DEFAULT_SEARCH_DOMAIN.to_string()]);
@@ -492,8 +492,8 @@ fn create_interfaces(
                     );
                     let br_accept_ra =
                         format!("net/ipv6/conf/{}/accept_ra", &data.bridge_interface_name);
-                    CoreUtils::apply_sysctl_value(&br_accept_dad, "0")?;
-                    CoreUtils::apply_sysctl_value(&br_accept_ra, "0")?;
+                    CoreUtils::apply_sysctl_value(br_accept_dad, "0")?;
+                    CoreUtils::apply_sysctl_value(br_accept_ra, "0")?;
                 }
 
                 let link = host
@@ -531,7 +531,7 @@ fn create_veth_pair(
     host: &mut netlink::Socket,
     netns: &mut netlink::Socket,
     data: &InternalData,
-    master_index: u32,
+    primary_index: u32,
     internal: bool,
     hostns_fd: RawFd,
     netns_fd: RawFd,
@@ -547,7 +547,7 @@ fn create_veth_pair(
 
     let mut host_veth = netlink::CreateLinkOptions::new(String::from(""), InfoKind::Veth);
     host_veth.mtu = data.mtu;
-    host_veth.master_index = master_index;
+    host_veth.primary_index = primary_index;
     host_veth.info_data = Some(InfoData::Veth(VethInfo::Peer(peer)));
 
     host.create_link(host_veth).map_err(|err| match err {
@@ -593,7 +593,7 @@ fn create_veth_pair(
                 "/proc/sys/net/ipv6/conf/{}/accept_dad",
                 &data.container_interface_name
             );
-            core_utils::CoreUtils::apply_sysctl_value(&disable_dad_in_container, "0")?;
+            core_utils::CoreUtils::apply_sysctl_value(disable_dad_in_container, "0")?;
         }
         Ok::<(), NetavarkError>(())
     });
@@ -605,10 +605,10 @@ fn create_veth_pair(
 
         for nla in host_veth.nlas.into_iter() {
             if let Nla::IfName(name) = nla {
-                //  Disable dad inside the container too
+                //  Disable dad inside on the host too
                 let disable_dad_in_container =
                     format!("/proc/sys/net/ipv6/conf/{}/accept_dad", name);
-                core_utils::CoreUtils::apply_sysctl_value(&disable_dad_in_container, "0")?;
+                core_utils::CoreUtils::apply_sysctl_value(disable_dad_in_container, "0")?;
             }
         }
     }
@@ -665,7 +665,7 @@ fn remove_link(
 ) -> NetavarkResult<bool> {
     netns
         .del_link(netlink::LinkID::Name(container_veth_name.to_string()))
-        .wrap(&format!(
+        .wrap(format!(
             "failed to delete container veth {}",
             container_veth_name
         ))?;
@@ -681,7 +681,7 @@ fn remove_link(
     if links.is_empty() {
         log::info!("removing bridge {}", br_name);
         host.del_link(netlink::LinkID::ID(br.header.index))
-            .wrap(&format!("failed to delete bridge {}", container_veth_name))?;
+            .wrap(format!("failed to delete bridge {}", container_veth_name))?;
         return Ok(true);
     }
     Ok(false)

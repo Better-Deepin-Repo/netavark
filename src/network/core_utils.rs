@@ -22,6 +22,10 @@ use sysctl::{Sysctl, SysctlError};
 
 use super::netlink;
 
+pub const IPVLAN_MODE_L2: u16 = 0;
+pub const IPVLAN_MODE_L3: u16 = 1;
+pub const IPVLAN_MODE_L3S: u16 = 2;
+
 pub struct CoreUtils {
     pub networkns: String,
 }
@@ -141,6 +145,7 @@ pub fn get_ipam_addresses<'a>(
             }
             internal_types::IPAMAddresses {
                 container_addresses,
+                dhcp_enabled: false,
                 gateway_addresses,
                 net_addresses,
                 nameservers,
@@ -151,18 +156,21 @@ pub fn get_ipam_addresses<'a>(
             // no ipam just return empty vectors
             internal_types::IPAMAddresses {
                 container_addresses: vec![],
+                dhcp_enabled: false,
                 gateway_addresses: vec![],
                 net_addresses: vec![],
                 nameservers: vec![],
                 ipv6_enabled: false,
             }
         }
-        Some(constants::IPAM_DHCP) => {
-            return Err(std::io::Error::new(
-                std::io::ErrorKind::Other,
-                "dhcp ipam driver is not yet supported",
-            ));
-        }
+        Some(constants::IPAM_DHCP) => internal_types::IPAMAddresses {
+            container_addresses: vec![],
+            dhcp_enabled: true,
+            gateway_addresses: vec![],
+            ipv6_enabled: false,
+            net_addresses: vec![],
+            nameservers: vec![],
+        },
         Some(driver) => {
             return Err(std::io::Error::new(
                 std::io::ErrorKind::Other,
@@ -188,7 +196,6 @@ impl CoreUtils {
     pub fn decode_address_from_hex(input: &str) -> Result<Vec<u8>, std::io::Error> {
         let bytes: Result<Vec<u8>, _> = input
             .split(|c| c == ':' || c == '-')
-            .into_iter()
             .map(|b| u8::from_str_radix(b, 16))
             .collect();
 
@@ -224,6 +231,19 @@ impl CoreUtils {
             // default to bridge
             name => Err(NetavarkError::msg(format!(
                 "invalid macvlan mode \"{}\"",
+                name
+            ))),
+        }
+    }
+
+    pub fn get_ipvlan_mode_from_string(mode: &str) -> NetavarkResult<u16> {
+        match mode {
+            // default to l2 when unset
+            "" | "l2" => Ok(IPVLAN_MODE_L2),
+            "l3" => Ok(IPVLAN_MODE_L3),
+            "l3s" => Ok(IPVLAN_MODE_L3S),
+            name => Err(NetavarkError::msg(format!(
+                "invalid ipvlan mode \"{}\"",
                 name
             ))),
         }
@@ -270,7 +290,7 @@ pub fn join_netns(fd: RawFd) -> NetavarkResult<()> {
 }
 
 /// safe way to join the namespace and join back to the host after the task is done
-/// This first arg should be the hostns fd, the second is the contianer ns fd.
+/// This first arg should be the hostns fd, the second is the container ns fd.
 /// The third is the result variable name and the last the closure that should be
 /// executed in the ns.
 #[macro_export]
@@ -321,7 +341,7 @@ pub fn open_netlink_sockets(
 }
 
 fn open_netlink_socket(netns_path: &str) -> NetavarkResult<(File, RawFd)> {
-    let ns = wrap!(File::open(netns_path), &format!("open {}", netns_path))?;
+    let ns = wrap!(File::open(netns_path), format!("open {}", netns_path))?;
     let ns_fd = ns.as_raw_fd();
     Ok((ns, ns_fd))
 }
@@ -361,13 +381,13 @@ pub fn add_default_routes(
             }
         };
         sock.add_route(&route)
-            .wrap(&format!("add default route {}", &route))?;
+            .wrap(format!("add default route {}", &route))?;
     }
     Ok(())
 }
 
 pub fn disable_ipv6_autoconf(if_name: &str) -> NetavarkResult<()> {
-    // make sure autoconf is off, we want manaully config only
+    // make sure autoconf is off, we want manual config only
     if let Err(err) =
         CoreUtils::apply_sysctl_value(format!("/proc/sys/net/ipv6/conf/{}/autoconf", if_name), "0")
     {

@@ -6,6 +6,7 @@ use crate::network::driver::{get_network_driver, DriverInfo};
 use crate::network::netlink::LinkID;
 use crate::network::{self};
 use crate::network::{core_utils, types};
+
 use clap::Parser;
 use log::{debug, error, info};
 use std::collections::HashMap;
@@ -30,8 +31,9 @@ impl Setup {
     pub fn exec(
         &self,
         input_file: Option<String>,
-        config_dir: String,
+        config_dir: &str,
         aardvark_bin: String,
+        plugin_directories: Option<Vec<String>>,
         rootless: bool,
     ) -> NetavarkResult<()> {
         match network::validation::ns_checks(&self.network_namespace_path) {
@@ -69,19 +71,22 @@ impl Setup {
                 ))
             })?;
 
-            let mut driver = get_network_driver(DriverInfo {
-                firewall: firewall_driver.as_ref(),
-                container_id: &network_options.container_id,
-                container_name: &network_options.container_name,
-                container_dns_servers: &network_options.dns_servers,
-                netns_host: hostns.fd,
-                netns_container: netns.fd,
-                netns_path: &self.network_namespace_path,
-                network,
-                per_network_opts,
-                port_mappings: &network_options.port_mappings,
-                dns_port,
-            })?;
+            let mut driver = get_network_driver(
+                DriverInfo {
+                    firewall: firewall_driver.as_ref(),
+                    container_id: &network_options.container_id,
+                    container_name: &network_options.container_name,
+                    container_dns_servers: &network_options.dns_servers,
+                    netns_host: hostns.fd,
+                    netns_container: netns.fd,
+                    netns_path: &self.network_namespace_path,
+                    network,
+                    per_network_opts,
+                    port_mappings: &network_options.port_mappings,
+                    dns_port,
+                },
+                &plugin_directories,
+            )?;
 
             // validate before we do anything
             driver.validate()?;
