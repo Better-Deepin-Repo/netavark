@@ -1,4 +1,3 @@
 relax-deps.patch
-use-zbus-1.9.patch
 relax-tests.patch
 debian-paths.patch
