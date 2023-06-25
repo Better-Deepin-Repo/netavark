@@ -32,3 +32,19 @@ Index: netavark/Cargo.toml
  netlink-packet-core = "0.5"
  fs2 = "0.4.3"
  netlink-sys = "0.8.5"
+@@ -58,11 +58,11 @@ tokio-stream = { version = "0.1", featur
+ tonic = "0.9"
+ mozim = "0.2.2"
+ prost = "0.11"
+-futures-channel="0.3.28"
+-futures-core = "0.3.28"
+-futures-util = "0.3.28"
++futures-channel="0.3"
++futures-core = "0.3"
++futures-util = "0.3"
+ nispor = "1.2.10"
+-http = "0.2.9"
++http = "0.2"
+ macaddr = "1.0.1"
+ tower = { version = "0.4" }
+ 
