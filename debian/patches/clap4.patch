@@ -1,0 +1,426 @@
+commit f0d5cc86ba3460a2c8e73d734f32a5095d60813a
+Author: Paul Holzinger <pholzing@redhat.com>
+Date:   Wed Apr 12 13:53:42 2023 +0200
+
+    update clap to v4
+    
+    `forbid_empty_values` was replaced with `builder::NonEmptyStringValueParser`.
+    Also fixes the awkward command structure for the proxy client which
+    required an extra argument despite not using it.
+    
+    Signed-off-by: Paul Holzinger <pholzing@redhat.com>
+
+Index: netavark/Cargo.lock
+===================================================================
+--- netavark.orig/Cargo.lock
++++ netavark/Cargo.lock
+@@ -21,6 +21,46 @@ dependencies = [
+ ]
+ 
+ [[package]]
++name = "anstream"
++version = "0.2.6"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "342258dd14006105c2b75ab1bd7543a03bdf0cfc94383303ac212a04939dff6f"
++dependencies = [
++ "anstyle",
++ "anstyle-parse",
++ "anstyle-wincon",
++ "concolor-override",
++ "concolor-query",
++ "is-terminal",
++ "utf8parse",
++]
++
++[[package]]
++name = "anstyle"
++version = "0.3.5"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "23ea9e81bd02e310c216d080f6223c179012256e5151c41db88d12c88a1684d2"
++
++[[package]]
++name = "anstyle-parse"
++version = "0.1.1"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "a7d1bb534e9efed14f3e5f44e7dd1a4f709384023a4165199a4241e18dff0116"
++dependencies = [
++ "utf8parse",
++]
++
++[[package]]
++name = "anstyle-wincon"
++version = "0.2.0"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "c3127af6145b149f3287bb9a0d10ad9c5692dba8c53ad48285e5bec4063834fa"
++dependencies = [
++ "anstyle",
++ "windows-sys 0.45.0",
++]
++
++[[package]]
+ name = "anyhow"
+ version = "1.0.70"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+@@ -143,17 +183,6 @@ source = "registry+https://github.com/ru
+ checksum = "debc29dde2e69f9e47506b525f639ed42300fc014a3e007832592448fa8e4599"
+ 
+ [[package]]
+-name = "atty"
+-version = "0.2.14"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "d9b39be18770d11421cdb1b9947a45dd3f37e93092cbf377614828a319d5fee8"
+-dependencies = [
+- "hermit-abi 0.1.19",
+- "libc",
+- "winapi",
+-]
+-
+-[[package]]
+ name = "autocfg"
+ version = "1.1.0"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+@@ -284,42 +313,45 @@ dependencies = [
+ 
+ [[package]]
+ name = "clap"
+-version = "3.2.23"
++version = "4.2.1"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "71655c45cb9845d3270c9d6df84ebe72b4dad3c2ba3f7023ad47c144e4e473a5"
++checksum = "046ae530c528f252094e4a77886ee1374437744b2bff1497aa898bbddbbb29b3"
+ dependencies = [
+- "atty",
+- "bitflags",
++ "clap_builder",
+  "clap_derive",
+- "clap_lex",
+- "indexmap",
+  "once_cell",
++]
++
++[[package]]
++name = "clap_builder"
++version = "4.2.1"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "223163f58c9a40c3b0a43e1c4b50a9ce09f007ea2cb1ec258a687945b4b7929f"
++dependencies = [
++ "anstream",
++ "anstyle",
++ "bitflags",
++ "clap_lex",
+  "strsim",
+- "termcolor",
+- "textwrap",
+ ]
+ 
+ [[package]]
+ name = "clap_derive"
+-version = "3.2.18"
++version = "4.2.0"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "ea0c8bce528c4be4da13ea6fead8965e95b6073585a2f05204bd8f4119f82a65"
++checksum = "3f9644cd56d6b87dbe899ef8b053e331c0637664e9e21a33dfcdc36093f5c5c4"
+ dependencies = [
+  "heck",
+- "proc-macro-error",
+  "proc-macro2",
+  "quote",
+- "syn 1.0.109",
++ "syn 2.0.12",
+ ]
+ 
+ [[package]]
+ name = "clap_lex"
+-version = "0.2.4"
++version = "0.4.1"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "2850f2f5a82cbf437dd5af4d49848fbdfc27c157c3d010345776f952765261c5"
+-dependencies = [
+- "os_str_bytes",
+-]
++checksum = "8a2dd5a6fe8c6e3502f568a6353e5273bbb15193ad9a89e457b9970798efbea1"
+ 
+ [[package]]
+ name = "codespan-reporting"
+@@ -332,6 +364,21 @@ dependencies = [
+ ]
+ 
+ [[package]]
++name = "concolor-override"
++version = "1.0.0"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "a855d4a1978dc52fb0536a04d384c2c0c1aa273597f08b77c8c4d3b2eec6037f"
++
++[[package]]
++name = "concolor-query"
++version = "0.3.3"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "88d11d52c3d7ca2e6d0040212be9e4dbbcd78b6447f535b6b561f449427944cf"
++dependencies = [
++ "windows-sys 0.45.0",
++]
++
++[[package]]
+ name = "concurrent-queue"
+ version = "2.1.0"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+@@ -807,15 +854,6 @@ checksum = "95505c38b4572b2d910cecb02815
+ 
+ [[package]]
+ name = "hermit-abi"
+-version = "0.1.19"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "62b467343b94ba476dcb2500d242dadbb39557df889310ac77c5d99100aaac33"
+-dependencies = [
+- "libc",
+-]
+-
+-[[package]]
+-name = "hermit-abi"
+ version = "0.2.6"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "ee512640fe35acbfb4bb779db6f0d80704c2cacfa2e39b601ef3e3f47d1ae4c7"
+@@ -1402,12 +1440,6 @@ dependencies = [
+ ]
+ 
+ [[package]]
+-name = "os_str_bytes"
+-version = "6.4.1"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "9b7820b9daea5457c9f21c69448905d723fbd21136ccf521748f23fd49e723ee"
+-
+-[[package]]
+ name = "parking"
+ version = "2.0.0"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+@@ -1508,30 +1540,6 @@ dependencies = [
+ ]
+ 
+ [[package]]
+-name = "proc-macro-error"
+-version = "1.0.4"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "da25490ff9892aab3fcf7c36f08cfb902dd3e71ca0f9f9517bea02a73a5ce38c"
+-dependencies = [
+- "proc-macro-error-attr",
+- "proc-macro2",
+- "quote",
+- "syn 1.0.109",
+- "version_check",
+-]
+-
+-[[package]]
+-name = "proc-macro-error-attr"
+-version = "1.0.4"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "a1be40180e52ecc98ad80b184934baf3d0d29f979574e439af5a55274b35f869"
+-dependencies = [
+- "proc-macro2",
+- "quote",
+- "version_check",
+-]
+-
+-[[package]]
+ name = "proc-macro2"
+ version = "1.0.53"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+@@ -1914,12 +1922,6 @@ dependencies = [
+ ]
+ 
+ [[package]]
+-name = "textwrap"
+-version = "0.16.0"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "222a222a5bfe1bba4a77b45ec488a741b3cb8872e5e499451fd7d0129c9c7c3d"
+-
+-[[package]]
+ name = "thiserror"
+ version = "1.0.39"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+@@ -2227,6 +2229,12 @@ dependencies = [
+ ]
+ 
+ [[package]]
++name = "utf8parse"
++version = "0.2.1"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "711b9620af191e0cdc7468a8d14e709c3dcdb115b36f838e601583af800a370a"
++
++[[package]]
+ name = "version_check"
+ version = "0.9.4"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+Index: netavark/Cargo.toml
+===================================================================
+--- netavark.orig/Cargo.toml
++++ netavark/Cargo.toml
+@@ -34,7 +34,7 @@ deps-serde = ["chrono/serde", "url/serde
+ 
+ [dependencies]
+ anyhow = "1.0"
+-clap = { version = "3.2.23", features = ["derive"] }
++clap = { version = "4.1", features = ["derive"] }
+ env_logger = "0.9"
+ ipnet = { version = "2", features = ["serde"] }
+ iptables = "0.5"
+Index: netavark/src/commands/setup.rs
+===================================================================
+--- netavark.orig/src/commands/setup.rs
++++ netavark/src/commands/setup.rs
+@@ -7,6 +7,7 @@ use crate::network::netlink::LinkID;
+ use crate::network::{self};
+ use crate::network::{core_utils, types};
+ 
++use clap::builder::NonEmptyStringValueParser;
+ use clap::Parser;
+ use log::{debug, error, info};
+ use std::collections::HashMap;
+@@ -16,7 +17,7 @@ use std::path::Path;
+ #[derive(Parser, Debug)]
+ pub struct Setup {
+     /// Network namespace path
+-    #[clap(forbid_empty_values = true, required = true)]
++    #[clap(required = true, value_parser = NonEmptyStringValueParser::new())]
+     network_namespace_path: String,
+ }
+ 
+Index: netavark/src/commands/teardown.rs
+===================================================================
+--- netavark.orig/src/commands/teardown.rs
++++ netavark/src/commands/teardown.rs
+@@ -4,6 +4,7 @@ use crate::network::core_utils;
+ use crate::network::driver::{get_network_driver, DriverInfo};
+ 
+ use crate::{firewall, network};
++use clap::builder::NonEmptyStringValueParser;
+ use clap::Parser;
+ use log::debug;
+ use std::path::Path;
+@@ -11,7 +12,7 @@ use std::path::Path;
+ #[derive(Parser, Debug)]
+ pub struct Teardown {
+     /// Network namespace path
+-    #[clap(forbid_empty_values = true, required = true)]
++    #[clap(required = true, value_parser = NonEmptyStringValueParser::new())]
+     network_namespace_path: String,
+ }
+ 
+Index: netavark/src/commands/update.rs
+===================================================================
+--- netavark.orig/src/commands/update.rs
++++ netavark/src/commands/update.rs
+@@ -2,6 +2,7 @@ use crate::dns::aardvark::Aardvark;
+ use crate::error::{NetavarkError, NetavarkResult};
+ use crate::network::core_utils;
+ 
++use clap::builder::NonEmptyStringValueParser;
+ use clap::Parser;
+ use log::debug;
+ use std::path::Path;
+@@ -9,10 +10,10 @@ use std::path::Path;
+ #[derive(Parser, Debug)]
+ pub struct Update {
+     /// Network name to update
+-    #[clap(forbid_empty_values = true, required = true)]
++    #[clap(required = true, value_parser = NonEmptyStringValueParser::new())]
+     network_name: String,
+     /// DNS Servers to update for the network
+-    #[clap(long, required = true, forbid_empty_values = false)]
++    #[clap(long, required = true)]
+     network_dns_servers: Vec<String>,
+ }
+ 
+Index: netavark/src/dhcp_proxy_client/client.rs
+===================================================================
+--- netavark.orig/src/dhcp_proxy_client/client.rs
++++ netavark/src/dhcp_proxy_client/client.rs
+@@ -46,14 +46,8 @@ async fn main() -> Result<(), Box<dyn st
+     let uds_path = opts.uds.unwrap_or_else(|| DEFAULT_UDS_PATH.to_string());
+     let input_config = NetworkConfig::load(&file)?;
+     let result = match opts.subcmd {
+-        SubCommand::Setup(_) => {
+-            let s = setup::Setup::new(input_config);
+-            s.exec(&uds_path).await
+-        }
+-        SubCommand::Teardown(_) => {
+-            let t = teardown::Teardown::new(input_config);
+-            t.exec(&uds_path).await
+-        }
++        SubCommand::Setup(s) => s.exec(&uds_path, input_config).await,
++        SubCommand::Teardown(t) => t.exec(&uds_path, input_config).await,
+     };
+     let r = match result {
+         Ok(r) => r,
+Index: netavark/src/dhcp_proxy_client/commands/setup.rs
+===================================================================
+--- netavark.orig/src/dhcp_proxy_client/commands/setup.rs
++++ netavark/src/dhcp_proxy_client/commands/setup.rs
+@@ -6,24 +6,13 @@ use netavark::{
+ };
+ 
+ #[derive(Parser, Debug)]
+-pub struct Setup {
+-    /// Network namespace path
+-    #[clap(forbid_empty_values = false, required = false)]
+-    config: NetworkConfig,
+-}
++pub struct Setup {}
+ 
+ impl Setup {
+-    pub fn new(config: NetworkConfig) -> Self {
+-        Self { config }
+-    }
+-
+-    pub async fn exec(&self, p: &str) -> Result<Lease, NetavarkError> {
++    pub async fn exec(&self, p: &str, config: NetworkConfig) -> Result<Lease, NetavarkError> {
+         debug!("{:?}", "Setting up...");
+-        debug!(
+-            "input: {:#?}",
+-            serde_json::to_string_pretty(&self.config.clone())
+-        );
++        debug!("input: {:#?}", serde_json::to_string_pretty(&config));
+ 
+-        self.config.clone().get_lease(p).await
++        config.clone().get_lease(p).await
+     }
+ }
+Index: netavark/src/dhcp_proxy_client/commands/teardown.rs
+===================================================================
+--- netavark.orig/src/dhcp_proxy_client/commands/teardown.rs
++++ netavark/src/dhcp_proxy_client/commands/teardown.rs
+@@ -6,19 +6,11 @@ use netavark::{
+ };
+ 
+ #[derive(Parser, Debug)]
+-pub struct Teardown {
+-    /// Network namespace path
+-    #[clap(forbid_empty_values = true, required = true)]
+-    config: NetworkConfig,
+-}
++pub struct Teardown {}
+ 
+ impl Teardown {
+-    pub fn new(config: NetworkConfig) -> Self {
+-        Self { config }
+-    }
+-
+-    pub async fn exec(&self, p: &str) -> Result<Lease, NetavarkError> {
++    pub async fn exec(&self, p: &str, config: NetworkConfig) -> Result<Lease, NetavarkError> {
+         debug!("Entering teardown");
+-        self.config.clone().drop_lease(p).await
++        config.clone().drop_lease(p).await
+     }
+ }
+Index: netavark/test-dhcp/helpers.bash
+===================================================================
+--- netavark.orig/test-dhcp/helpers.bash
++++ netavark/test-dhcp/helpers.bash
+@@ -408,7 +408,7 @@ function run_teardown(){
+ function run_client(){
+   local verb=$1
+   local conf=$2
+-  run_in_container_netns "./bin/netavark-dhcp-proxy-client" --uds "$TMP_TESTDIR/nv-proxy.sock" -f "${conf}" "${verb}" "foo"
++  run_in_container_netns "./bin/netavark-dhcp-proxy-client" --uds "$TMP_TESTDIR/nv-proxy.sock" -f "${conf}" "${verb}"
+ }
+ 
+ ###################
