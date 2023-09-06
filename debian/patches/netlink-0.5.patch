@@ -12,19 +12,25 @@ Date:   Fri Feb 17 15:03:19 2023 +0100
     
     Signed-off-by: Paul Holzinger <pholzing@redhat.com>
 
-diff --git a/Cargo.toml b/Cargo.toml
-index de0b465..2620f80 100644
---- a/Cargo.toml
-+++ b/Cargo.toml
-@@ -44,2 +44,2 @@ zbus = { version = "3.10.0" }
+Index: netavark/Cargo.toml
+===================================================================
+--- netavark.orig/Cargo.toml
++++ netavark/Cargo.toml
+@@ -34,8 +34,8 @@ zbus = { version = "3.6.1" }
+ nix = "0.26.1"
+ rand = "0.8"
+ sha2 = "0.10"
 -netlink-packet-route = "0.13"
 -netlink-packet-core = "0.4.2"
 +netlink-packet-route = "0.15"
 +netlink-packet-core = "0.5"
-diff --git a/src/network/netlink.rs b/src/network/netlink.rs
-index 4b11a28..dcf165a 100644
---- a/src/network/netlink.rs
-+++ b/src/network/netlink.rs
+ fs2 = "0.4.3"
+ netlink-sys = "0.8.3"
+ 
+Index: netavark/src/network/netlink.rs
+===================================================================
+--- netavark.orig/src/network/netlink.rs
++++ netavark/src/network/netlink.rs
 @@ -9,11 +9,14 @@ use crate::{
      wrap,
  };

@@ -11,20 +11,26 @@ Date:   Mon Jul 10 14:54:12 2023 +0200
     
     Signed-off-by: Paul Holzinger <pholzing@redhat.com>
 
-diff --git a/Cargo.toml b/Cargo.toml
-index 2cd2df8..4d12567 100644
---- a/Cargo.toml
-+++ b/Cargo.toml
-@@ -52,2 +52,2 @@ zbus = { version = "3.14.1" }
+Index: netavark/Cargo.toml
+===================================================================
+--- netavark.orig/Cargo.toml
++++ netavark/Cargo.toml
+@@ -34,8 +34,8 @@ zbus = { version = "3.6.1" }
+ nix = "0.26.1"
+ rand = "0.8"
+ sha2 = "0.10"
 -netlink-packet-route = "0.15"
 -netlink-packet-core = "0.5"
 +netlink-packet-route = "0.17.0"
 +netlink-packet-core = "0.7.0"
-diff --git a/src/network/bridge.rs b/src/network/bridge.rs
-index f749f42..9658edf 100644
---- a/src/network/bridge.rs
-+++ b/src/network/bridge.rs
-@@ -483,7 +483,7 @@ fn create_interfaces(
+ fs2 = "0.4.3"
+ netlink-sys = "0.8.3"
+ 
+Index: netavark/src/network/bridge.rs
+===================================================================
+--- netavark.orig/src/network/bridge.rs
++++ netavark/src/network/bridge.rs
+@@ -471,7 +471,7 @@ fn create_interfaces(
          Ok(bridge) => check_link_is_bridge(bridge, &data.bridge_interface_name)?,
          Err(err) => match err.unwrap() {
              NetavarkError::Netlink(e) => {
@@ -33,7 +39,7 @@ index f749f42..9658edf 100644
                      // if bridge does not exists we will create it below,
                      // for all other errors we want to return the error
                      return Err(err).wrap("get bridge interface");
-@@ -563,7 +563,7 @@ fn create_veth_pair(
+@@ -551,7 +551,7 @@ fn create_veth_pair(
      host_veth.info_data = Some(InfoData::Veth(VethInfo::Peer(peer)));
  
      host.create_link(host_veth).map_err(|err| match err {
@@ -42,11 +48,11 @@ index f749f42..9658edf 100644
              format!(
                  "create veth pair: interface {} already exists on container namespace",
                  data.container_interface_name
-diff --git a/src/network/netlink.rs b/src/network/netlink.rs
-index b5c1a6f..fdb36a0 100644
---- a/src/network/netlink.rs
-+++ b/src/network/netlink.rs
-@@ -217,7 +217,7 @@ impl Socket {
+Index: netavark/src/network/netlink.rs
+===================================================================
+--- netavark.orig/src/network/netlink.rs
++++ netavark/src/network/netlink.rs
+@@ -207,7 +207,7 @@ impl Socket {
              Ok(result) => result,
              Err(err) => match err {
                  // kernel returns EACCES when we try to add an ipv6 but ipv6 is disabled in the kernel
@@ -55,7 +61,7 @@ index b5c1a6f..fdb36a0 100644
                      ipnet::IpNet::V6(_) => {
                          return Err(NetavarkError::wrap(
                              "failed to add ipv6 address, is ipv6 enabled in the kernel?",
-@@ -449,9 +449,9 @@ impl Socket {
+@@ -417,9 +417,9 @@ impl Socket {
                  }
  
                  match rx_packet.payload {
@@ -68,11 +74,11 @@ index b5c1a6f..fdb36a0 100644
                              return Err(e.into());
                          }
                          return Ok(result);
-diff --git a/src/network/macvlan.rs b/src/network/macvlan.rs
-index acaa6fb..d43437a 100644
---- a/src/network/macvlan.rs
-+++ b/src/network/macvlan.rs
-@@ -314,7 +314,7 @@ fn setup(
+Index: netavark/src/network/macvlan.rs
+===================================================================
+--- netavark.orig/src/network/macvlan.rs
++++ netavark/src/network/macvlan.rs
+@@ -181,7 +181,7 @@ fn setup(
              Ok(_) => break,
  
              Err(err) => match err {
