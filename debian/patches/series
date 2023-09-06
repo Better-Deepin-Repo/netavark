@@ -1,4 +1,5 @@
 relax-deps.patch
-use-zbus-1.9.patch
 relax-tests.patch
 debian-paths.patch
+netlink-0.5.patch
+netlink-0.7.patch
