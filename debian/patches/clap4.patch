@@ -260,7 +260,7 @@ Index: netavark/Cargo.toml
  anyhow = "1.0"
 -clap = { version = "3.2.23", features = ["derive"] }
 +clap = { version = "4.1", features = ["derive"] }
- env_logger = "0.9"
+ env_logger = "0.10"
  ipnet = { version = "2", features = ["serde"] }
  iptables = "0.5"
 Index: netavark/src/commands/setup.rs

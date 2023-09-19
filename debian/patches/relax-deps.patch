@@ -2,12 +2,12 @@ Index: netavark/Cargo.toml
 ===================================================================
 --- netavark.orig/Cargo.toml
 +++ netavark/Cargo.toml
-@@ -35,21 +35,21 @@ deps-serde = ["chrono/serde", "url/serde
+@@ -35,22 +35,22 @@ deps-serde = ["chrono/serde", "url/serde
  [dependencies]
  anyhow = "1.0"
  clap = { version = "3.2.23", features = ["derive"] }
 -env_logger = "0.10.0"
-+env_logger = "0.9"
++env_logger = "0.10"
  ipnet = { version = "2", features = ["serde"] }
  iptables = "0.5"
  libc = "0.2"
@@ -26,12 +26,14 @@ Index: netavark/Cargo.toml
 -rand = "0.8.5"
 -sha2 = "0.10.6"
 -netlink-packet-route = "0.15"
+-netlink-packet-core = "0.5"
 +rand = "0.8"
 +sha2 = "0.10"
-+netlink-packet-route = "0.12"
- netlink-packet-core = "0.5"
++netlink-packet-route = "0.17"
++netlink-packet-core = "0.7"
  fs2 = "0.4.3"
  netlink-sys = "0.8.5"
+ tokio = { version = "1.27", features = ["rt", "rt-multi-thread", "signal", "fs"] }
 @@ -58,11 +58,11 @@ tokio-stream = { version = "0.1", featur
  tonic = "0.9"
  mozim = "0.2.2"
