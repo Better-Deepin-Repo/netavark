@@ -1,3 +1,4 @@
 relax-deps.patch
 relax-tests.patch
 debian-paths.patch
+nix-0.26.patch
