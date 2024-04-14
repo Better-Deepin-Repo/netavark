@@ -6,12 +6,12 @@ Index: netavark/src/main.rs
 ===================================================================
 --- netavark.orig/src/main.rs
 +++ netavark/src/main.rs
-@@ -52,7 +52,7 @@ fn main() {
+@@ -58,7 +58,7 @@ fn main() {
      let rootless = opts.rootless.unwrap_or(false);
      let aardvark_bin = opts
          .aardvark_binary
--        .unwrap_or_else(|| String::from("/usr/libexec/podman/aardvark-dns"));
-+        .unwrap_or_else(|| String::from("/usr/lib/podman/aardvark-dns"));
+-        .unwrap_or_else(|| OsString::from("/usr/libexec/podman/aardvark-dns"));
++        .unwrap_or_else(|| OsString::from("/usr/lib/podman/aardvark-dns"));
      let result = match opts.subcmd {
          SubCommand::Setup(setup) => setup.exec(
              opts.file,
