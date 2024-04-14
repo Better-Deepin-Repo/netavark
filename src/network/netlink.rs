@@ -1,6 +1,6 @@
 use std::{
     net::{Ipv4Addr, Ipv6Addr},
-    os::unix::prelude::RawFd,
+    os::fd::{AsFd, AsRawFd, BorrowedFd},
 };
 
 use crate::{
@@ -28,7 +28,7 @@ pub struct Socket {
 }
 
 #[derive(Clone)]
-pub struct CreateLinkOptions {
+pub struct CreateLinkOptions<'fd> {
     pub name: String,
     kind: InfoKind,
     pub info_data: Option<InfoData>,
@@ -36,7 +36,7 @@ pub struct CreateLinkOptions {
     pub primary_index: u32,
     pub link: u32,
     pub mac: Vec<u8>,
-    pub netns: RawFd,
+    pub netns: Option<BorrowedFd<'fd>>,
 }
 
 pub enum LinkID {
@@ -71,7 +71,7 @@ impl std::fmt::Display for Route {
                 metric.unwrap_or(constants::DEFAULT_METRIC),
             ),
         };
-        write!(f, "(dest: {} ,gw: {}, metric {})", dest, gw, metric)
+        write!(f, "(dest: {dest} ,gw: {gw}, metric {metric})")
     }
 }
 
@@ -174,10 +174,10 @@ impl Socket {
         Ok(())
     }
 
-    pub fn set_link_ns(&mut self, link_id: u32, netns_fd: i32) -> NetavarkResult<()> {
+    pub fn set_link_ns<Fd: AsFd>(&mut self, link_id: u32, netns: Fd) -> NetavarkResult<()> {
         let mut msg = LinkMessage::default();
         msg.header.index = link_id;
-        msg.nlas.push(Nla::NetNsFd(netns_fd));
+        msg.nlas.push(Nla::NetNsFd(netns.as_fd().as_raw_fd()));
 
         let result = self.make_netlink_request(RtnlMessage::SetLink(msg), NLM_F_ACK)?;
         expect_netlink_result!(result, 0);
@@ -217,7 +217,7 @@ impl Socket {
             Ok(result) => result,
             Err(err) => match err {
                 // kernel returns EACCES when we try to add an ipv6 but ipv6 is disabled in the kernel
-                NetavarkError::Netlink(ref e) if -e.code == libc::EACCES => match addr {
+                NetavarkError::Netlink(ref e) if -e.raw_code() == libc::EACCES => match addr {
                     ipnet::IpNet::V6(_) => {
                         return Err(NetavarkError::wrap(
                             "failed to add ipv6 address, is ipv6 enabled in the kernel?",
@@ -249,8 +249,6 @@ impl Socket {
         msg.header.protocol = RTPROT_STATIC;
         msg.header.scope = RT_SCOPE_UNIVERSE;
         msg.header.kind = RTN_UNICAST;
-
-        info!("Adding route {}", route);
 
         let (dest_vec, dest_prefix, gateway_vec, final_metric) = match route {
             Route::Ipv4 { dest, gw, metric } => {
@@ -285,6 +283,7 @@ impl Socket {
 
     pub fn add_route(&mut self, route: &Route) -> NetavarkResult<()> {
         let msg = Self::create_route_msg(route);
+        info!("Adding route {}", route);
 
         let result =
             self.make_netlink_request(RtnlMessage::NewRoute(msg), NLM_F_ACK | NLM_F_CREATE)?;
@@ -295,6 +294,7 @@ impl Socket {
 
     pub fn del_route(&mut self, route: &Route) -> NetavarkResult<()> {
         let msg = Self::create_route_msg(route);
+        info!("Deleting route {}", route);
 
         let result = self.make_netlink_request(RtnlMessage::DelRoute(msg), NLM_F_ACK)?;
         expect_netlink_result!(result, 0);
@@ -394,6 +394,22 @@ impl Socket {
         Ok(())
     }
 
+    pub fn set_mac_address(&mut self, id: LinkID, mac: Vec<u8>) -> NetavarkResult<()> {
+        let mut msg = LinkMessage::default();
+
+        match id {
+            LinkID::ID(id) => msg.header.index = id,
+            LinkID::Name(name) => msg.nlas.push(Nla::IfName(name)),
+        }
+
+        msg.nlas.push(Nla::Address(mac));
+
+        let result = self.make_netlink_request(RtnlMessage::SetLink(msg), NLM_F_ACK)?;
+        expect_netlink_result!(result, 0);
+
+        Ok(())
+    }
+
     fn make_netlink_request(
         &mut self,
         msg: RtnlMessage,
@@ -435,8 +451,7 @@ impl Socket {
                 let rx_packet: NetlinkMessage<RtnlMessage> = NetlinkMessage::deserialize(bytes)
                     .map_err(|e| {
                         NetavarkError::Message(format!(
-                            "failed to deserialize netlink message: {}",
-                            e,
+                            "failed to deserialize netlink message: {e}",
                         ))
                     })?;
                 trace!("read netlink packet: {:?}", rx_packet);
@@ -449,9 +464,9 @@ impl Socket {
                 }
 
                 match rx_packet.payload {
-                    NetlinkPayload::Done => return Ok(result),
-                    NetlinkPayload::Error(e) | NetlinkPayload::Ack(e) => {
-                        if e.code != 0 {
+                    NetlinkPayload::Done(_) => return Ok(result),
+                    NetlinkPayload::Error(e) => {
+                        if e.code.is_some() {
                             return Err(e.into());
                         }
                         return Ok(result);
@@ -485,7 +500,7 @@ impl Socket {
     }
 }
 
-impl CreateLinkOptions {
+impl CreateLinkOptions<'_> {
     pub fn new(name: String, kind: InfoKind) -> Self {
         CreateLinkOptions {
             name,
@@ -495,8 +510,7 @@ impl CreateLinkOptions {
             primary_index: 0,
             link: 0,
             mac: vec![],
-            // 0 is a valid fd, so use -1 by default
-            netns: -1,
+            netns: None,
         }
     }
 }
@@ -535,7 +549,7 @@ pub fn parse_create_link_options(msg: &mut LinkMessage, options: CreateLinkOptio
     }
 
     // add netnsfd
-    if options.netns > -1 {
-        msg.nlas.push(Nla::NetNsFd(options.netns));
+    if let Some(netns) = options.netns {
+        msg.nlas.push(Nla::NetNsFd(netns.as_raw_fd()));
     }
 }
