@@ -2,7 +2,7 @@ Index: netavark/Cargo.toml
 ===================================================================
 --- netavark.orig/Cargo.toml
 +++ netavark/Cargo.toml
-@@ -43,14 +43,14 @@ log = "0.4.17"
+@@ -43,19 +43,19 @@ log = "0.4.17"
  serde = { version = "1.0.159", features = ["derive"], optional = true }
  serde-value = "0.7.0"
  serde_json = "1.0.95"
@@ -20,3 +20,9 @@ Index: netavark/Cargo.toml
  fs2 = "0.4.3"
  netlink-sys = "0.8.5"
  tokio = { version = "1.27", features = ["rt", "rt-multi-thread", "signal", "fs"] }
+ tokio-stream = { version = "0.1", features = ["net"] }
+-tonic = "0.9"
++tonic = "0.10"
+ mozim = "0.2.2"
+ prost = "0.11"
+ futures-channel="0.3.28"
