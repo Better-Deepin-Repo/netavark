@@ -1,22 +1,17 @@
-use crate::commands::get_config_dir;
-use crate::dns::aardvark::{Aardvark, AardvarkEntry};
+use crate::dns::aardvark::Aardvark;
 use crate::error::{NetavarkError, NetavarkErrorList, NetavarkResult};
-use crate::network::constants::DRIVER_BRIDGE;
 use crate::network::core_utils;
 use crate::network::driver::{get_network_driver, DriverInfo};
 
 use crate::{firewall, network};
-use clap::builder::NonEmptyStringValueParser;
 use clap::Parser;
 use log::debug;
-use std::ffi::OsString;
-use std::os::fd::AsFd;
 use std::path::Path;
 
 #[derive(Parser, Debug)]
 pub struct Teardown {
     /// Network namespace path
-    #[clap(required = true, value_parser = NonEmptyStringValueParser::new())]
+    #[clap(forbid_empty_values = true, required = true)]
     network_namespace_path: String,
 }
 
@@ -30,10 +25,10 @@ impl Teardown {
 
     pub fn exec(
         &self,
-        input_file: Option<OsString>,
-        config_dir: Option<OsString>,
-        aardvark_bin: OsString,
-        plugin_directories: Option<Vec<OsString>>,
+        input_file: Option<String>,
+        config_dir: &str,
+        aardvark_bin: String,
+        plugin_directories: Option<Vec<String>>,
         rootless: bool,
     ) -> NetavarkResult<()> {
         debug!("{:?}", "Tearing down..");
@@ -42,35 +37,25 @@ impl Teardown {
         let mut error_list = NetavarkErrorList::new();
 
         let dns_port = core_utils::get_netavark_dns_port()?;
-        let config_dir = get_config_dir(config_dir, "teardown")?;
 
-        let mut aardvark_entries = Vec::new();
-        for (key, network) in &network_options.network_info {
-            if network.dns_enabled && network.driver == DRIVER_BRIDGE {
-                aardvark_entries.push(AardvarkEntry {
-                    network_name: key,
-                    network_gateways: Vec::new(),
-                    network_dns_servers: &None,
-                    container_id: &network_options.container_id,
-                    container_ips_v4: Vec::new(),
-                    container_ips_v6: Vec::new(),
-                    container_names: Vec::new(),
-                    container_dns_servers: &None,
-                });
-            }
-        }
-
-        if !aardvark_entries.is_empty() {
+        if Path::new(&aardvark_bin).exists() {
             // stop dns server first before netavark clears the interface
             let path = Path::new(&config_dir).join("aardvark-dns");
-
-            let aardvark_interface = Aardvark::new(path, rootless, aardvark_bin, dns_port);
-            if let Err(err) = aardvark_interface.delete_from_netavark_entries(aardvark_entries) {
-                error_list.push(NetavarkError::wrap("remove aardvark entries", err));
+            if let Ok(path_string) = path.into_os_string().into_string() {
+                let aardvark_interface =
+                    Aardvark::new(path_string, rootless, aardvark_bin, dns_port);
+                if let Err(err) = aardvark_interface.delete_from_netavark_entries(&network_options)
+                {
+                    error_list.push(err.into());
+                }
+            } else {
+                error_list.push(NetavarkError::msg(
+                    "Unable to parse aardvark config directory",
+                ));
             }
         }
 
-        let firewall_driver = match firewall::get_supported_firewall_driver(None) {
+        let firewall_driver = match firewall::get_supported_firewall_driver() {
             Ok(driver) => driver,
             Err(e) => return Err(e),
         };
@@ -83,7 +68,8 @@ impl Teardown {
                 Some(opts) => opts,
                 None => {
                     error_list.push(NetavarkError::Message(format!(
-                        "network options for network {net_name} not found"
+                        "network options for network {} not found",
+                        net_name
                     )));
                     continue;
                 }
@@ -95,15 +81,13 @@ impl Teardown {
                     container_id: &network_options.container_id,
                     container_name: &network_options.container_name,
                     container_dns_servers: &network_options.dns_servers,
-                    netns_host: hostns.file.as_fd(),
-                    netns_container: netns.file.as_fd(),
+                    netns_host: hostns.fd,
+                    netns_container: netns.fd,
                     netns_path: &self.network_namespace_path,
                     network,
                     per_network_opts,
                     port_mappings: &network_options.port_mappings,
                     dns_port,
-                    config_dir: Path::new(&config_dir),
-                    rootless,
                 },
                 &plugin_directories,
             ) {

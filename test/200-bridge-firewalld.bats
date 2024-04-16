@@ -9,7 +9,46 @@ fw_driver=firewalld
 
 function setup() {
     basic_setup
-    setup_firewalld
+
+    # first, create a new dbus session
+    DBUS_SYSTEM_BUS_ADDRESS=unix:path=$NETAVARK_TMPDIR/netavark-firewalld
+    run_in_host_netns dbus-daemon --address="$DBUS_SYSTEM_BUS_ADDRESS" --print-pid --config-file="${TESTSDIR}/testfiles/firewalld-dbus.conf"
+    DBUS_PID="$output"
+    # export DBUS_SYSTEM_BUS_ADDRESS so firewalld and netavark will use the correct socket
+    export DBUS_SYSTEM_BUS_ADDRESS
+
+    # second, start firewalld in the netns with the dbus socket
+    # do not use run_in_host_netns because we want to run this in background
+    # use --nopid (we cannot change the pid file location), --nofork do not run as daemon so we can kill it by pid
+    # change --system-config to make sure that we do not write any config files to the host location
+    nsenter -n -t $HOST_NS_PID firewalld --nopid --nofork --system-config "$NETAVARK_TMPDIR" &>"$NETAVARK_TMPDIR/firewalld.log" &
+    FIREWALLD_PID=$!
+    echo "firewalld pid: $FIREWALLD_PID"
+
+    # wait for firewalld to become ready
+    timeout=5
+    while [ $timeout -gt 0 ]; do
+        # query firewalld with firewall-cmd
+        expected_rc="?" run_in_host_netns firewall-cmd --state
+        if [ "$status" -eq 0 ]; then
+            break
+        fi
+        sleep 1
+        timeout=$(($timeout - 1))
+        if [ $timeout -eq 0 ]; then
+            cat "$NETAVARK_TMPDIR/firewalld.log"
+            die "failed to start firewalld - timeout"
+        fi
+    done
+}
+
+function teardown() {
+    kill -9 $FIREWALLD_PID
+    kill -9 $DBUS_PID
+
+    unset DBUS_SYSTEM_BUS_ADDRESS
+
+    basic_teardown
 }
 
 @test "check firewalld driver is in use" {
@@ -51,41 +90,6 @@ function setup() {
     assert "$output" =~ "127.0.0.1" "Loopback adapter is up (has address)"
     # TODO check firewall
     # run_in_host_netns firewall-cmd ...
-}
-
-@test "$fw_driver - bridge with static routes" {
-    # add second interface and routes through that interface to test proper teardown
-    run_in_container_netns ip link add type dummy
-    run_in_container_netns ip a add 10.91.0.10/24 dev dummy0
-    run_in_container_netns ip link set dummy0 up
-
-    run_netavark --file ${TESTSDIR}/testfiles/bridge-staticroutes.json setup $(get_container_netns_path)
-
-    # check static routes
-    run_in_container_netns ip r
-    assert "$output" "=~" "10.89.0.0/24 via 10.88.0.2" "static route not set"
-    assert "$output" "=~" "10.90.0.0/24 via 10.88.0.3" "static route not set"
-    assert "$output" "=~" "10.92.0.0/24 via 10.91.0.1" "static route not set"
-
-    run_netavark --file ${TESTSDIR}/testfiles/bridge-staticroutes.json teardown $(get_container_netns_path)
-
-    # check static routes get removed
-    assert "$output" "!~" "10.89.0.0/24 via 10.88.0.2" "static route not set"
-    assert "$output" "!~" "10.90.0.0/24 via 10.88.0.3" "static route not set"
-    assert "$output" "!~" "10.92.0.0/24 via 10.91.0.1" "static route not removed"
-}
-
-@test "$fw_driver - bridge with no default route" {
-    run_netavark --file ${TESTSDIR}/testfiles/bridge-nodefaultroute.json setup $(get_container_netns_path)
-
-    run_in_container_netns ip r
-    assert "$output" "!~" "default" "default route exists"
-
-    run_in_container_netns ip -6 r
-    assert "$output" "!~" "default" "default route exists"
-
-    run_netavark --file ${TESTSDIR}/testfiles/bridge-nodefaultroute.json teardown $(get_container_netns_path)
-    assert "" "no errors"
 }
 
 @test "$fw_driver - ipv6 bridge" {
@@ -130,38 +134,24 @@ function setup() {
     run_in_host_netns ping6 -c 1 fd10:88:a::2
 }
 
-@test "$fw_driver - ipv6 bridge with static routes" {
-    # add second interface and routes through that interface to test proper teardown
-    run_in_container_netns ip link add type dummy
-    run_in_container_netns ip a add fd10:49:b::2/64 dev dummy0
-    run_in_container_netns ip link set dummy0 up
-
-    run_netavark --file ${TESTSDIR}/testfiles/ipv6-bridge-staticroutes.json setup $(get_container_netns_path)
-
-    # check static routes
-    run_in_container_netns ip -6 -br r
-    assert "$output" "=~" "fd10:89:b::/64 via fd10:88:a::ac02" "static route not set"
-    assert "$output" "=~" "fd10:89:c::/64 via fd10:88:a::ac03" "static route not set"
-    assert "$output" "=~" "fd10:51:b::/64 via fd10:49:b::30" "static route not set"
-
-    run_netavark --file ${TESTSDIR}/testfiles/ipv6-bridge-staticroutes.json teardown $(get_container_netns_path)
-
-    # check static routes get removed
-    run_in_container_netns ip -6 -br r
-    assert "$output" "!~" "fd10:89:b::/64 via fd10:88:a::ac02" "static route not removed"
-    assert "$output" "!~" "fd10:89:c::/64 via fd10:88:a::ac03" "static route not removed"
-    assert "$output" "!~" "fd10:51:b::/64 via fd10:49:b::30" "static route not removed"
-
-    run_in_container_netns ip link delete dummy0
-}
-
 @test "$fw_driver - dual stack dns with alt port" {
-    skip "FIXME (#846): firewalld 2.0 broken port redirect"
     # get a random port directly to avoid low ports e.g. 53 would not create iptables
     dns_port=$((RANDOM+10000))
 
+    # hack to make aardvark-dns run when really root or when running as user with
+    # podman unshare --rootless-netns; since netavark runs aardvark with systemd-run
+    # it needs to know if it should use systemd user instance or not.
+    # iptables are still setup identically.
+    rootless=false
+    if [[ ! -e "/run/dbus/system_bus_socket" ]]; then
+        rootless=true
+    fi
+
+    mkdir -p "$NETAVARK_TMPDIR/config"
+
     NETAVARK_FW=firewalld NETAVARK_DNS_PORT="$dns_port" \
         run_netavark --file ${TESTSDIR}/testfiles/dualstack-bridge.json \
+        --rootless "$rootless" --config "$NETAVARK_TMPDIR/config" \
         setup $(get_container_netns_path)
 
     # check iptables
@@ -192,6 +182,7 @@ function setup() {
 
     NETAVARK_FW=firewalld NETAVARK_DNS_PORT="$dns_port" \
         run_netavark --file ${TESTSDIR}/testfiles/dualstack-bridge.json \
+        --rootless "$rootless" --config "$NETAVARK_TMPDIR/config" \
         teardown $(get_container_netns_path)
 
     # check iptables got removed

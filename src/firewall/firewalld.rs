@@ -1,8 +1,8 @@
 use crate::error::{NetavarkError, NetavarkResult};
 use crate::firewall;
-use crate::network::internal_types;
 use crate::network::internal_types::{PortForwardConfig, TearDownNetwork, TeardownPortForward};
 use crate::network::types::PortMapping;
+use crate::network::{internal_types, types};
 use core::convert::TryFrom;
 use log::{debug, info};
 use std::collections::HashMap;
@@ -26,10 +26,6 @@ pub fn new(conn: Connection) -> Result<Box<dyn firewall::FirewallDriver>, Netava
 }
 
 impl firewall::FirewallDriver for FirewallD {
-    fn driver_name(&self) -> &str {
-        firewall::FIREWALLD
-    }
-
     fn setup_network(&self, network_setup: internal_types::SetupNetwork) -> NetavarkResult<()> {
         let mut need_reload = false;
 
@@ -37,7 +33,7 @@ impl firewall::FirewallDriver for FirewallD {
             Ok(b) => b,
             Err(e) => {
                 return Err(NetavarkError::wrap(
-                    format!("Error creating zone {ZONENAME}"),
+                    format!("Error creating zone {}", ZONENAME),
                     e,
                 ))
             }
@@ -47,7 +43,7 @@ impl firewall::FirewallDriver for FirewallD {
                 Ok(b) => b,
                 Err(e) => {
                     return Err(NetavarkError::wrap(
-                        format!("Error creating policy {POLICYNAME}"),
+                        format!("Error creating policy {}", POLICYNAME),
                         e,
                     ))
                 }
@@ -57,7 +53,7 @@ impl firewall::FirewallDriver for FirewallD {
                 Ok(b) => b,
                 Err(e) => {
                     return Err(NetavarkError::wrap(
-                        format!("Error creating policy {POLICYNAME}"),
+                        format!("Error creating policy {}", POLICYNAME),
                         e,
                     ))
                 }
@@ -76,12 +72,12 @@ impl firewall::FirewallDriver for FirewallD {
 
         // MUST come after the reload; otherwise the zone we made might not be
         // in the running config.
-        if let Some(nets) = network_setup.subnets {
-            match add_source_subnets_to_zone(&self.conn, ZONENAME, &nets) {
+        if let Some(nets) = network_setup.net.subnets {
+            match add_source_subnets_to_zone(&self.conn, ZONENAME, nets) {
                 Ok(_) => {}
                 Err(e) => {
                     return Err(NetavarkError::wrap(
-                        format!("Error adding source subnets to zone {ZONENAME}"),
+                        format!("Error adding source subnets to zone {}", ZONENAME),
                         e,
                     ))
                 }
@@ -96,15 +92,15 @@ impl firewall::FirewallDriver for FirewallD {
             return Ok(());
         }
 
-        if let Some(subnets) = tear.config.subnets {
+        if let Some(subnets) = tear.config.net.subnets {
             for subnet in subnets {
-                debug!("Removing subnet {} from zone {}", subnet, ZONENAME);
+                debug!("Removing subnet {} from zone {}", subnet.subnet, ZONENAME);
                 let _ = self.conn.call_method(
                     Some("org.fedoraproject.FirewallD1"),
                     "/org/fedoraproject/FirewallD1",
                     Some("org.fedoraproject.FirewallD1.zone"),
                     "removeSource",
-                    &(ZONENAME, subnet.to_string()),
+                    &(ZONENAME, subnet.subnet.to_string()),
                 )?;
             }
         }
@@ -133,7 +129,8 @@ impl firewall::FirewallDriver for FirewallD {
             Err(e) => {
                 return Err(NetavarkError::wrap(
                     format!(
-                        "Error decoding DBus message for policy {PORTPOLICYNAME} configuration"
+                        "Error decoding DBus message for policy {} configuration",
+                        PORTPOLICYNAME
                     ),
                     e.into(),
                 ))
@@ -282,7 +279,8 @@ impl firewall::FirewallDriver for FirewallD {
             Err(e) => {
                 return Err(NetavarkError::wrap(
                     format!(
-                        "Error decoding DBus message for policy {PORTPOLICYNAME} configuration"
+                        "Error decoding DBus message for policy {} configuration",
+                        PORTPOLICYNAME
                     ),
                     e.into(),
                 ))
@@ -473,7 +471,7 @@ fn create_zone_if_not_exist(conn: &Connection, zone_name: &str) -> NetavarkResul
             ))
         }
     };
-    for &zone in zones.iter() {
+    for (_, &zone) in zones.iter().enumerate() {
         if zone == zone_name {
             debug!("Zone exists and is running");
             return Ok(false);
@@ -497,7 +495,7 @@ fn create_zone_if_not_exist(conn: &Connection, zone_name: &str) -> NetavarkResul
             ))
         }
     };
-    for &zone in zones_perm.iter() {
+    for (_, &zone) in zones_perm.iter().enumerate() {
         if zone == zone_name {
             debug!("Zone exists and is not running");
             return Ok(true);
@@ -524,7 +522,7 @@ fn create_zone_if_not_exist(conn: &Connection, zone_name: &str) -> NetavarkResul
 pub fn add_source_subnets_to_zone(
     conn: &Connection,
     zone_name: &str,
-    subnets: &[ipnet::IpNet],
+    subnets: Vec<types::Subnet>,
 ) -> NetavarkResult<()> {
     for net in subnets {
         // Check if subnet already exists in zone
@@ -533,7 +531,7 @@ pub fn add_source_subnets_to_zone(
             "/org/fedoraproject/FirewallD1",
             Some("org.fedoraproject.FirewallD1.zone"),
             "getZoneOfSource",
-            &(net.to_string()),
+            &(net.subnet.to_string()),
         )?;
         let zone_string: String = match subnet_zone.body() {
             Ok(s) => s,
@@ -545,18 +543,21 @@ pub fn add_source_subnets_to_zone(
             }
         };
         if zone_string == zone_name {
-            debug!("Subnet {} already exists in zone {}", net, zone_name);
+            debug!("Subnet {} already exists in zone {}", net.subnet, zone_name);
             return Ok(());
         }
 
-        debug!("Adding subnet {} to zone {} as source", net, zone_name);
+        debug!(
+            "Adding subnet {} to zone {} as source",
+            net.subnet, zone_name
+        );
 
         let _ = conn.call_method(
             Some("org.fedoraproject.FirewallD1"),
             "/org/fedoraproject/FirewallD1",
             Some("org.fedoraproject.FirewallD1.zone"),
             "changeZoneOfSource",
-            &(zone_name, net.to_string()),
+            &(zone_name, net.subnet.to_string()),
         )?;
     }
 
@@ -593,7 +594,7 @@ fn add_policy_if_not_exist(
             ))
         }
     };
-    for &policy in policies.iter() {
+    for (_, &policy) in policies.iter().enumerate() {
         if policy == policy_name {
             debug!("Policy exists and is running");
             return Ok(false);
@@ -617,7 +618,7 @@ fn add_policy_if_not_exist(
             ))
         }
     };
-    for &policy in perm_policies.iter() {
+    for (_, &policy) in perm_policies.iter().enumerate() {
         if policy == policy_name {
             debug!("Policy exists and is not running");
             return Ok(true);

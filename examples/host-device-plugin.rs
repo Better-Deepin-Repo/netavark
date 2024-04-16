@@ -3,7 +3,6 @@
 use std::{
     collections::HashMap,
     net::{Ipv4Addr, Ipv6Addr},
-    os::fd::AsFd,
 };
 
 use netavark::{
@@ -81,14 +80,13 @@ impl Plugin for Exec {
             }
         }
 
-        host.netlink
-            .set_link_ns(link.header.index, netns.file.as_fd())?;
+        host.netlink.set_link_ns(link.header.index, netns.fd)?;
 
         // interfaces map, but we only ever expect one, for response
         let mut interfaces: HashMap<String, types::NetInterface> = HashMap::new();
 
         let interface = types::NetInterface {
-            mac_address,
+            mac_address: mac_address,
             subnets: Option::from(subnets),
         };
         interfaces.insert(name, interface);
@@ -115,9 +113,7 @@ impl Plugin for Exec {
 
         let link = netns.netlink.get_link(netlink::LinkID::Name(name))?;
 
-        netns
-            .netlink
-            .set_link_ns(link.header.index, host.file.as_fd())?;
+        netns.netlink.set_link_ns(link.header.index, host.fd)?;
 
         Ok(())
     }

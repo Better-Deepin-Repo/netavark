@@ -1,5 +1,4 @@
 //! Configures the given network namespace with provided specs
-use crate::commands::get_config_dir;
 use crate::dns::aardvark::Aardvark;
 use crate::error::{NetavarkError, NetavarkResult};
 use crate::firewall;
@@ -8,19 +7,16 @@ use crate::network::netlink::LinkID;
 use crate::network::{self};
 use crate::network::{core_utils, types};
 
-use clap::builder::NonEmptyStringValueParser;
 use clap::Parser;
 use log::{debug, error, info};
 use std::collections::HashMap;
-use std::ffi::OsString;
 use std::fs::{self};
-use std::os::fd::AsFd;
 use std::path::Path;
 
 #[derive(Parser, Debug)]
 pub struct Setup {
     /// Network namespace path
-    #[clap(required = true, value_parser = NonEmptyStringValueParser::new())]
+    #[clap(forbid_empty_values = true, required = true)]
     network_namespace_path: String,
 }
 
@@ -34,10 +30,10 @@ impl Setup {
 
     pub fn exec(
         &self,
-        input_file: Option<OsString>,
-        config_dir: Option<OsString>,
-        aardvark_bin: OsString,
-        plugin_directories: Option<Vec<OsString>>,
+        input_file: Option<String>,
+        config_dir: &str,
+        aardvark_bin: String,
+        plugin_directories: Option<Vec<String>>,
         rootless: bool,
     ) -> NetavarkResult<()> {
         match network::validation::ns_checks(&self.network_namespace_path) {
@@ -49,7 +45,7 @@ impl Setup {
         debug!("{:?}", "Setting up...");
         let network_options = network::types::NetworkOptions::load(input_file)?;
 
-        let firewall_driver = match firewall::get_supported_firewall_driver(None) {
+        let firewall_driver = match firewall::get_supported_firewall_driver() {
             Ok(driver) => driver,
             Err(e) => return Err(e),
         };
@@ -64,13 +60,15 @@ impl Setup {
         // setup loopback, it should be safe to assume that 1 is the loopback index
         netns.netlink.set_up(LinkID::ID(1))?;
 
-        let config_dir = get_config_dir(config_dir, "setup")?;
         let mut drivers = Vec::with_capacity(network_options.network_info.len());
 
         // Perform per-network setup
         for (net_name, network) in network_options.network_info.iter() {
             let per_network_opts = network_options.networks.get(net_name).ok_or_else(|| {
-                NetavarkError::Message(format!("network options for network {net_name} not found"))
+                NetavarkError::Message(format!(
+                    "network options for network {} not found",
+                    net_name
+                ))
             })?;
 
             let mut driver = get_network_driver(
@@ -79,15 +77,13 @@ impl Setup {
                     container_id: &network_options.container_id,
                     container_name: &network_options.container_name,
                     container_dns_servers: &network_options.dns_servers,
-                    netns_host: hostns.file.as_fd(),
-                    netns_container: netns.file.as_fd(),
+                    netns_host: hostns.fd,
+                    netns_container: netns.fd,
                     netns_path: &self.network_namespace_path,
                     network,
                     per_network_opts,
                     port_mappings: &network_options.port_mappings,
                     dns_port,
-                    config_dir: Path::new(&config_dir),
-                    rootless,
                 },
                 &plugin_directories,
             )?;
@@ -129,42 +125,48 @@ impl Setup {
             }
         }
 
-        if !aardvark_entries.is_empty() {
-            if Path::new(&aardvark_bin).exists() {
-                let path = Path::new(&config_dir).join("aardvark-dns");
+        if Path::new(&aardvark_bin).exists() && !aardvark_entries.is_empty() {
+            let path = Path::new(&config_dir).join("aardvark-dns");
 
-                match fs::create_dir(path.as_path()) {
-                    Ok(_) => {}
-                    // ignore error when path already exists
-                    Err(ref e) if e.kind() == std::io::ErrorKind::AlreadyExists => {}
-                    Err(e) => {
-                        return Err(std::io::Error::new(
-                            std::io::ErrorKind::Other,
-                            format!("failed to create aardvark-dns directory: {e}"),
-                        )
-                        .into());
-                    }
-                }
-
-                let aardvark_interface = Aardvark::new(path, rootless, aardvark_bin, dns_port);
-
-                if let Err(er) = aardvark_interface.commit_netavark_entries(aardvark_entries) {
+            match fs::create_dir(path.as_path()) {
+                Ok(_) => {}
+                // ignore error when path already exists
+                Err(ref e) if e.kind() == std::io::ErrorKind::AlreadyExists => {}
+                Err(e) => {
                     return Err(std::io::Error::new(
                         std::io::ErrorKind::Other,
-                        format!("Error while applying dns entries: {er}"),
+                        format!("failed to create aardvark-dns directory: {}", e),
                     )
                     .into());
                 }
-            } else {
-                info!(
-                    "dns disabled because aardvark-dns path {:?} does not exists",
-                    &aardvark_bin
-                );
             }
+
+            let path_string = match path.into_os_string().into_string() {
+                Ok(path) => path,
+                Err(_) => {
+                    return Err(std::io::Error::new(
+                        std::io::ErrorKind::Other,
+                        "failed to convert path to String",
+                    )
+                    .into());
+                }
+            };
+
+            let aardvark_interface = Aardvark::new(path_string, rootless, aardvark_bin, dns_port);
+
+            if let Err(er) = aardvark_interface.commit_netavark_entries(aardvark_entries) {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::Other,
+                    format!("Error while applying dns entries: {}", er),
+                )
+                .into());
+            }
+        } else {
+            info!("dns disabled because aardvark-dns path does not exists");
         }
         debug!("{:#?}", response);
         let response_json = serde_json::to_string(&response)?;
-        println!("{response_json}");
+        println!("{}", response_json);
         debug!("{:?}", "Setup complete");
         Ok(())
     }

@@ -32,73 +32,15 @@ function basic_setup() {
 
     NETAVARK_TMPDIR=$(mktemp -d --tmpdir=${BATS_TMPDIR:-/tmp} netavark_bats.XXXXXX)
 
-    # hack to make aardvark-dns run when really root or when running as user with
-    # podman unshare --rootless-netns; since netavark runs aardvark with systemd-run
-    # it needs to know if it should use systemd user instance or not.
-    # iptables are still setup identically.
-    rootless=false
-    if [[ ! -e "/run/dbus/system_bus_socket" ]]; then
-        rootless=true
-    fi
-
-    mkdir -p "$NETAVARK_TMPDIR/config"
-
     run_in_host_netns ip link set lo up
 }
 
 function basic_teardown() {
-    teardown_firewalld
     kill -9 $HOST_NS_PID
     for i in "${!CONTAINER_NS_PIDS[@]}"; do
         kill -9 "${CONTAINER_NS_PIDS[$i]}"
     done
     rm -rf "$NETAVARK_TMPDIR"
-}
-
-function setup_firewalld() {
-    # first, create a new dbus session
-    DBUS_SYSTEM_BUS_ADDRESS=unix:path=$NETAVARK_TMPDIR/netavark-firewalld
-    run_in_host_netns dbus-daemon --address="$DBUS_SYSTEM_BUS_ADDRESS" --print-pid --config-file="${TESTSDIR}/testfiles/firewalld-dbus.conf"
-    DBUS_PID="$output"
-    # export DBUS_SYSTEM_BUS_ADDRESS so firewalld and netavark will use the correct socket
-    export DBUS_SYSTEM_BUS_ADDRESS
-
-    # second, start firewalld in the netns with the dbus socket
-    # do not use run_in_host_netns because we want to run this in background
-    # use --nopid (we cannot change the pid file location), --nofork do not run as daemon so we can kill it by pid
-    # change --system-config to make sure that we do not write any config files to the host location
-    nsenter -n -t $HOST_NS_PID firewalld --nopid --nofork --system-config "$NETAVARK_TMPDIR" &>"$NETAVARK_TMPDIR/firewalld.log" &
-    FIREWALLD_PID=$!
-    echo "firewalld pid: $FIREWALLD_PID"
-
-    # wait for firewalld to become ready
-    timeout=5
-    while [ $timeout -gt 0 ]; do
-        # query firewalld with firewall-cmd
-        expected_rc="?" run_in_host_netns firewall-cmd --state
-        if [ "$status" -eq 0 ]; then
-            break
-        fi
-        sleep 1
-        timeout=$(($timeout - 1))
-        if [ $timeout -eq 0 ]; then
-            cat "$NETAVARK_TMPDIR/firewalld.log"
-            die "failed to start firewalld - timeout"
-        fi
-    done
-}
-
-function teardown_firewalld() {
-    if [ -n "${NETAVARK_FIREWALLD_RELOAD_PID}" ]; then
-        kill -9 $NETAVARK_FIREWALLD_RELOAD_PID
-    fi
-    if [ -n "${FIREWALLD_PID}" ]; then
-        kill -9 $FIREWALLD_PID
-    fi
-    if [ -n "${DBUS_PID}" ]; then
-        kill -9 $DBUS_PID
-    fi
-    unset DBUS_SYSTEM_BUS_ADDRESS
 }
 
 # Provide the above as default methods.
@@ -133,16 +75,8 @@ function get_container_netns_path() {
 # it joins the test network namespace before it invokes $NETAVARK,
 # which may be 'netavark' or '/some/path/netavark'.
 function run_netavark() {
-    run_in_host_netns $NETAVARK --rootless "$rootless" \
-    --config "$NETAVARK_TMPDIR/config" "$@"
+    run_in_host_netns $NETAVARK "$@"
 }
-
-function run_netavark_firewalld_reload() {
-    # need to use nsetner as this will be run in the background
-    nsenter -n -t $HOST_NS_PID $NETAVARK --config "$NETAVARK_TMPDIR/config" firewalld-reload &
-    NETAVARK_FIREWALLD_RELOAD_PID=$!
-}
-
 
 ################
 #  run_in_container_netns  #  Run args in container netns
@@ -396,7 +330,6 @@ function assert_json() {
 #     containerport=$port the port which is binded in the container
 #     range=$num >=1 specify a port range which will forward hostport+range ports
 #     connectip=$ip the ip which is used to connect to in the ncat test
-#     firewalld_reload={false,true} call firewall-cmd --reload to check for port rules
 #
 function test_port_fw() {
     local ipv4=true
@@ -407,7 +340,6 @@ function test_port_fw() {
     local container_port=""
     local range=1
     local connect_ip=""
-    local firewalld_reload=false
 
     # parse arguments
     while [[ "$#" -gt 0 ]]; do
@@ -441,9 +373,6 @@ function test_port_fw() {
             ;;
         range)
             range="$value"
-            ;;
-        firewalld_reload)
-            firewalld_reload="$value"
             ;;
         *) die "unknown argument for '$arg' test_port_fw" ;;
         esac
@@ -519,7 +448,7 @@ function test_port_fw() {
       ],
       "ipv6_enabled": true,
       "internal": false,
-      "dns_enabled": false,
+      "dns_enabled": true,
       "ipam_options": {
         "driver": "host-local"
       }
@@ -531,18 +460,8 @@ EOF
     # echo the config here this is useful for debugging in case a test fails
     echo "$config"
 
-    if [ $firewalld_reload = true ]; then
-        setup_firewalld
-        run_netavark_firewalld_reload
-    fi
-
     run_netavark setup $(get_container_netns_path) <<<"$config"
     result="$output"
-
-    if [ $firewalld_reload = true ]; then
-        run_in_host_netns firewall-cmd --reload
-        sleep 1
-    fi
 
     # protocol can be a comma separated list of protocols names
     # split it into an array

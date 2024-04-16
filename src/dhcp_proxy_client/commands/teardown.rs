@@ -6,11 +6,19 @@ use netavark::{
 };
 
 #[derive(Parser, Debug)]
-pub struct Teardown {}
+pub struct Teardown {
+    /// Network namespace path
+    #[clap(forbid_empty_values = true, required = true)]
+    config: NetworkConfig,
+}
 
 impl Teardown {
-    pub async fn exec(&self, p: &str, config: NetworkConfig) -> Result<Lease, NetavarkError> {
+    pub fn new(config: NetworkConfig) -> Self {
+        Self { config }
+    }
+
+    pub async fn exec(&self, p: &str) -> Result<Lease, NetavarkError> {
         debug!("Entering teardown");
-        config.clone().drop_lease(p).await
+        self.config.clone().drop_lease(p).await
     }
 }

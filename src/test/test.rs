@@ -2,15 +2,13 @@
 
 #[cfg(test)]
 mod tests {
-    use std::ffi::OsString;
-
     use netavark::network;
     #[test]
     // Test setup options loader
     fn test_setup_opts_load() {
-        match network::types::NetworkOptions::load(Some(OsString::from(
-            "src/test/config/setupopts.test.json",
-        ))) {
+        match network::types::NetworkOptions::load(Some(
+            "src/test/config/setupopts.test.json".to_owned(),
+        )) {
             Ok(_) => {}
             Err(e) => panic!("{}", e),
         }
@@ -19,9 +17,9 @@ mod tests {
     // Test if we can deserialize values correctly
     #[test]
     fn test_setup_opts_assert() {
-        match network::types::NetworkOptions::load(Some(OsString::from(
-            "src/test/config/setupopts.test.json",
-        ))) {
+        match network::types::NetworkOptions::load(Some(
+            "src/test/config/setupopts.test.json".to_owned(),
+        )) {
             Ok(setupopts) => {
                 assert_eq!(setupopts.container_name, "testcontainer")
             }
@@ -33,9 +31,9 @@ mod tests {
     // Try mutating deserialized struct
     #[test]
     fn test_setup_opts_mutability() {
-        match network::types::NetworkOptions::load(Some(OsString::from(
-            "src/test/config/setupopts.test.json",
-        ))) {
+        match network::types::NetworkOptions::load(Some(
+            "src/test/config/setupopts.test.json".to_owned(),
+        )) {
             Ok(mut setupopts) => {
                 assert_eq!(setupopts.container_name, "testcontainer");
                 setupopts.container_name = "mutatedcontainername".to_string();

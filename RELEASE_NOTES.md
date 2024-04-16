@@ -1,29 +1,5 @@
 # Release Notes
 
-## v1.9.0
-* add firewalld-reload subcommand
-* bridge: force static mac on bridge interface
-* dependency updates
-* numerous fixes to test suite
-
-## v1.8.0
-* iptables: improve error when ip6?tables commands are missing
-* docs: Convert markdown with go-md2man instead of mandown
-* iptables: drop invalid packages
-* bump rust edition to 2021
-* Add ACCEPT rules in firewall for bridge network with internal dns
-* Add vrf support for bridges
-
-## v1.7.0
-* Fix misleading dns disabled log
-* Dependency updates
-* --config is now required when dns is used
-* netavark dhcp-proxy correctly renews the lease after dhcp time-out
-* bridge: isolate=strict option has been added
-* macvlan: bclim option has been added
-* "no_default_route" option has been added
-* static routes can now be configured
-
 ## v1.6.0
 * Now supports a driver plugin module for user defined network drivers
 * Initial MACVLAN DHCP support (additional unit file required for packagers)

@@ -4,7 +4,7 @@ use crate::{
     firewall::FirewallDriver,
 };
 
-use std::{ffi::OsString, net::IpAddr, os::fd::BorrowedFd, path::Path};
+use std::{net::IpAddr, path::Path};
 
 use super::{
     bridge::Bridge,
@@ -14,21 +14,20 @@ use super::{
     vlan::Vlan,
 };
 use std::os::unix::fs::PermissionsExt;
+use std::os::unix::io::RawFd;
 
 pub struct DriverInfo<'a> {
     pub firewall: &'a dyn FirewallDriver,
     pub container_id: &'a String,
     pub container_name: &'a String,
     pub container_dns_servers: &'a Option<Vec<IpAddr>>,
-    pub netns_host: BorrowedFd<'a>,
-    pub netns_container: BorrowedFd<'a>,
+    pub netns_host: RawFd,
+    pub netns_container: RawFd,
     pub netns_path: &'a str,
     pub network: &'a Network,
     pub per_network_opts: &'a PerNetworkOptions,
     pub port_mappings: &'a Option<Vec<PortMapping>>,
     pub dns_port: u16,
-    pub config_dir: &'a Path,
-    pub rootless: bool,
 }
 
 pub trait NetworkDriver {
@@ -51,7 +50,7 @@ pub trait NetworkDriver {
 
 pub fn get_network_driver<'a>(
     info: DriverInfo<'a>,
-    plugins_directories: &Option<Vec<OsString>>,
+    plugins_directories: &Option<Vec<String>>,
 ) -> NetavarkResult<Box<dyn NetworkDriver + 'a>> {
     match info.network.driver.as_str() {
         constants::DRIVER_BRIDGE => Ok(Box::new(Bridge::new(info))),

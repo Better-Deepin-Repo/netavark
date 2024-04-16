@@ -17,10 +17,8 @@ Netavark is a tool for configuring networking for Linux containers. Its features
 
 ## Requires
 
-- [go-md2man](https://github.com/cpuguy83/go-md2man)
 - [Rust](https://www.rust-lang.org/tools/install)
-- [Podman](https://podman.io/docs) 4.0+
-- [protoc](https://grpc.io/docs/protoc-installation/)
+- [Podman](https://podman.io/getting-started/) 4.0+
 
 ## Build
 
@@ -36,7 +34,7 @@ Also see [./test](./test/README.md) for more information.
 ## Communications
 
 For general questions and discussion, please use Podman's
-[channels](https://podman.io/community/).
+[channels](https://podman.io/community/#slack-irc-matrix-and-discord).
 
 For discussions around issues/bugs and features, you can use the GitHub
 [issues](https://github.com/containers/netavark/issues)
