@@ -329,6 +329,7 @@ function assert_json() {
 #     hostport=$port the port which is binded on the host
 #     containerport=$port the port which is binded in the container
 #     range=$num >=1 specify a port range which will forward hostport+range ports
+#     connectip=$ip the ip which is used to connect to in the ncat test
 #
 function test_port_fw() {
     local ipv4=true
@@ -338,6 +339,7 @@ function test_port_fw() {
     local host_port=""
     local container_port=""
     local range=1
+    local connect_ip=""
 
     # parse arguments
     while [[ "$#" -gt 0 ]]; do
@@ -359,6 +361,9 @@ function test_port_fw() {
             ;;
         hostip)
             host_ip="$value"
+            ;;
+        connectip)
+            connect_ip="$value"
             ;;
         hostport)
             host_port="$value"
@@ -464,15 +469,6 @@ EOF
 
     for proto in "${protocols[@]}"; do
 
-        local nc_proto_arg=""
-
-        case $proto in
-        tcp) ;; # nothing to do (default)
-        udp) nc_proto_arg=--udp ;;
-        sctp) nc_proto_arg=--sctp ;;
-        *) die "unknown port proto '$proto'" ;;
-        esac
-
         # ports can be a range, we have to check the full range
         i=0
         while [ $i -lt $range ]; do
@@ -480,26 +476,26 @@ EOF
             ((hport = host_port + i))
 
             if [ $ipv4 = true ]; then
-                connect_ip=$ipv4_gateway
-                if [[ -n "$host_ip" ]]; then
-                    connect_ip=$host_ip
+                if [[ -z "$connect_ip" ]]; then
+                    connect_ip=$ipv4_gateway
+                    if [[ -n "$host_ip" ]]; then
+                        connect_ip=$host_ip
+                    fi
                 fi
 
-                if is_ipv4 "$connect_ip"; then
-                    run_nc_test "0" "-4 $nc_proto_arg" $cport $connect_ip $hport
-                fi
+                run_nc_test "0" "$proto" $cport $connect_ip $hport
             fi
 
 
             if [ $ipv6 = true ]; then
-                connect_ip=$ipv6_gateway
-                if [[ -n "$host_ip" ]]; then
-                    connect_ip=$host_ip
+                if [[ -z "$connect_ip" ]]; then
+                    connect_ip=$ipv6_gateway
+                    if [[ -n "$host_ip" ]]; then
+                        connect_ip=$host_ip
+                    fi
                 fi
 
-                if is_ipv6 "$connect_ip"; then
-                    run_nc_test "0" "-6 $nc_proto_arg" $cport $connect_ip $hport
-                fi
+                run_nc_test "0" "$proto" $cport $connect_ip $hport
             fi
 
             ((i = i + 1))
@@ -538,21 +534,46 @@ function is_ipv4() {
 # $4 == host port, the nc client will connect to this port
 function run_nc_test() {
     local container_ns=$1
-    local nc_common_args=$2
+    local proto=$2
     local container_port=$3
     local connect_ip=$4
     local host_port=$5
 
-    # for some reason we have to attach STDIN to the server only for the sctp proto
-    # otherwise it will just exit for unknown reasons. However we must not add STDIN
-    # to udp and tcp otherwise those tests will fail.
+    local nc_common_args=""
     local stdin=/dev/null
-    if [[ "$nc_common_args" =~ "--sctp" ]]; then
+
+    case $proto in
+    tcp) ;; # nothing to do (default)
+    udp) nc_common_args=--udp ;;
+    sctp)
+        nc_common_args=--sctp
+        # for some reason we have to attach STDIN to the server only for the sctp proto
+        # otherwise it will just exit for unknown reasons. However we must not add STDIN
+        # to udp and tcp otherwise those tests will fail.
         stdin=/dev/zero
+        ;;
+    *) die "unknown port proto '$proto'" ;;
+    esac
+
+    if is_ipv4 "$connect_ip"; then
+        nc_common_args="-4 $nc_common_args"
+    fi
+    if is_ipv6 "$connect_ip"; then
+        nc_common_args="-6 $nc_common_args"
     fi
 
     nsenter -n -t "${CONTAINER_NS_PIDS[$container_ns]}" timeout --foreground -v --kill=10 5 \
         nc $nc_common_args -l -p $container_port &>"$NETAVARK_TMPDIR/nc-out" <$stdin &
+
+    # make sure to wait until port is bound otherwise test can flake
+    # https://github.com/containers/netavark/issues/433
+    if [ "$proto" = "tcp" ] || [ "$proto" = "udp" ]; then
+        wait_for_port "${CONTAINER_NS_PIDS[$container_ns]}" $container_port $proto
+    else
+        # TODO add support for sctp port reading from /proc/net/sctp/eps,
+        # for now just sleep
+        sleep 0.5
+    fi
 
     data=$(random_string)
     run_in_host_netns nc $nc_common_args $connect_ip $host_port <<<"$data"
@@ -653,4 +674,128 @@ function add_dummy_interface_on_host() {
         run_in_host_netns ip addr add "$ipaddr" dev "$name"
     fi
     run_in_host_netns ip link set "$name" up
+}
+
+
+### Below functions are taken from podman system tests,
+### see Stefano Brivio's commit  https://github.com/containers/podman/pull/16141/commits/ea4f168b3a6603991f2cbdc2dcfe6268a46bf1ba
+
+# ipv6_to_procfs() - RFC 5952 IPv6 address text representation to procfs format
+# $1:	Address in any notation described by RFC 5952
+function ipv6_to_procfs() {
+    local addr="${1}"
+
+    # Add leading zero if missing
+    case ${addr} in
+        "::"*) addr=0"${addr}" ;;
+    esac
+
+    # Double colon can mean any number of all-zero fields. Expand to fill
+    # as many colons as are missing. (This will not be a valid IPv6 form,
+    # but we don't need it for long). E.g., 0::1 -> 0:::::::1
+    case ${addr} in
+        *"::"*)
+            # All the colons in the address
+            local colons
+            colons=$(tr -dc : <<<$addr)
+            # subtract those from a string of eight colons; this gives us
+            # a string of two to six colons...
+            local pad
+            pad=$(sed -e "s/$colons//" <<<":::::::")
+            # ...which we then inject in place of the double colon.
+            addr=$(sed -e "s/::/::$pad/" <<<$addr)
+            ;;
+    esac
+
+    # Print as a contiguous string of zero-filled 16-bit words
+    # (The additional ":" below is needed because 'read -d x' actually
+    # means "x is a TERMINATOR, not a delimiter")
+    local group
+    while read -d : group; do
+        printf "%04X" "0x${group:-0}"
+    done <<<"${addr}:"
+}
+
+# __ipv4_to_procfs() - Print bytes in hexadecimal notation reversing arguments
+# $@:	IPv4 address as separate bytes
+function __ipv4_to_procfs() {
+    printf "%02X%02X%02X%02X" ${4} ${3} ${2} ${1}
+}
+
+# ipv4_to_procfs() - IPv4 address representation to big-endian procfs format
+# $1:	Text representation of IPv4 address
+function ipv4_to_procfs() {
+    IFS='.' __ipv4_to_procfs ${1}
+}
+
+# port_is_bound() - Check if TCP or UDP port is bound for a given address
+# $1:   Netns PID
+# $2:	Port number
+# $3:	Optional protocol, or optional IPv4 or IPv6 address, default: tcp
+# $4:	Optional IPv4 or IPv6 address, or optional protocol, default: any
+function port_is_bound() {
+    local pid=$1
+    local port=${2?Usage: port_is_bound PORT [tcp|udp] [ADDRESS]}
+
+    if   [ "${3}" = "tcp" ] || [ "${3}" = "udp" ]; then
+        local address="${4}"
+        local proto="${3}"
+    elif [ "${4}" = "tcp" ] || [ "${4}" = "udp" ]; then
+        local address="${3}"
+        local proto="${4}"
+    else
+        local address="${3}"	# Might be empty
+        local proto="tcp"
+    fi
+
+    port=$(printf %04X ${port})
+    case "${address}" in
+    *":"*)
+        nsenter -n -t $pid grep -e "^[^:]*: $(ipv6_to_procfs "${address}"):${port} .*" \
+             -e "^[^:]*: $(ipv6_to_procfs "::0"):${port} .*"        \
+             -q "/proc/net/${proto}6"
+        ;;
+    *"."*)
+        nsenter -n -t $pid grep -e "^[^:]*: $(ipv4_to_procfs "${address}"):${port}"    \
+             -e "^[^:]*: $(ipv4_to_procfs "0.0.0.0"):${port}"       \
+             -q "/proc/net/${proto}"
+        ;;
+    *)
+        # No address: check both IPv4 and IPv6, for any bound address
+        nsenter -n -t $pid grep "^[^:]*: [^:]*:${port} .*" -q "/proc/net/${proto}6" || \
+        nsenter -n -t $pid grep "^[^:]*: [^:]*:${port} .*" -q "/proc/net/${proto}"
+        ;;
+    esac
+}
+
+# port_is_free() - Check if TCP or UDP port is free to bind for a given address
+# $1:   Netns PID
+# $2:	Port number
+# $3:	Optional protocol, or optional IPv4 or IPv6 address, default: tcp
+# $4:	Optional IPv4 or IPv6 address, or optional protocol, default: any
+function port_is_free() {
+    ! port_is_bound ${@}
+}
+
+# wait_for_port() - Return when port is binded
+# $1:   Netns PID
+# $2:	Port number
+# $3:	Optional protocol, or optional IPv4 or IPv6 address, default: tcp
+# $4:	Optional IPv4 or IPv6 address, or optional protocol, default: any
+# $5:	Optional timeout, 5 seconds if not given
+function wait_for_port() {
+    local pid=$1
+    local port=$2
+    local proto=$3
+    local host=$4
+    local _timeout=${5:-5}
+
+    # Wait
+    while [ $_timeout -gt 0 ]; do
+        port_is_bound ${pid} ${port} ${proto} ${host} && return
+        sleep 1
+        _timeout=$(( $_timeout - 1 ))
+    done
+
+    die "Timed out waiting for $host:$port"
 }

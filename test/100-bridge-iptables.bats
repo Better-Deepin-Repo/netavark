@@ -150,6 +150,18 @@ fw_driver=iptables
     assert "${lines[0]}" =~ "10.89.3.1,fd10:88:a::1 8.8.8.8" "aardvark set to listen to all IPs"
     assert "${lines[1]}" =~ "^[0-9a-f]{64} 10.89.3.2 fd10:88:a::2 somename 8.8.8.8,1.1.1.1$" "aardvark config's container"
     assert "${#lines[@]}" = 2 "too many lines in aardvark config"
+
+    # remove network and check running and verify if aardvark config has no nameserver
+    NETAVARK_DNS_PORT="$dns_port" run_netavark --file ${TESTSDIR}/testfiles/dualstack-bridge-network-container-dns-server.json \
+        --rootless "$rootless" --config "$NETAVARK_TMPDIR/config" \
+        update podman1 --network-dns-servers ""
+
+    # check aardvark config and running
+    run_helper cat "$NETAVARK_TMPDIR/config/aardvark-dns/podman1"
+    assert "${lines[0]}" == "10.89.3.1,fd10:88:a::1" "aardvark set to listen to all IPs"
+    assert "${lines[1]}" =~ "^[0-9a-f]{64} 10.89.3.2 fd10:88:a::2 somename 8.8.8.8,1.1.1.1$" "aardvark config's container"
+    assert "${#lines[@]}" = 2 "too many lines in aardvark config"
+
 }
 
 @test "$fw_driver - ipv6 bridge" {
@@ -415,32 +427,50 @@ fw_driver=iptables
 
 @test "$fw_driver - port forwarding with hostip ipv4 - tcp" {
     add_dummy_interface_on_host dummy0 "172.16.0.1/24"
-    run_in_host_netns ip addr
     test_port_fw hostip="172.16.0.1"
 }
 
-@test "$fw_driver - port forwarding with hostip ipv4 dual stack- tcp" {
+@test "$fw_driver - port forwarding with hostip ipv4 dual stack - tcp" {
     add_dummy_interface_on_host dummy0 "172.16.0.1/24"
-    run_in_host_netns ip addr
     test_port_fw ip=dual hostip="172.16.0.1"
 }
 
-@test "$fw_driver - port range forwarding with hostip ipv6 - tcp" {
+@test "$fw_driver - port forwarding with hostip ipv6 - tcp" {
     add_dummy_interface_on_host dummy0 "fd65:8371:648b:0c06::1/64"
     test_port_fw ip=6 hostip="fd65:8371:648b:0c06::1"
 }
 
-@test "$fw_driver - port range forwarding with hostip ipv6 dual stack - tcp" {
+@test "$fw_driver - port forwarding with hostip ipv6 dual stack - tcp" {
     add_dummy_interface_on_host dummy0 "fd65:8371:648b:0c06::1/64"
     test_port_fw ip=dual hostip="fd65:8371:648b:0c06::1"
 }
 
-@test "$fw_driver - port range forwarding with hostip ipv4 - udp" {
+@test "$fw_driver - port forwarding with wildcard hostip ipv4 - tcp" {
+    add_dummy_interface_on_host dummy0 "172.16.0.1/24"
+    test_port_fw hostip="0.0.0.0" connectip="172.16.0.1"
+}
+
+@test "$fw_driver - port forwarding with wildcard hostip ipv4 dual stack - tcp" {
+    add_dummy_interface_on_host dummy0 "172.16.0.1/24"
+    test_port_fw ip=dual hostip="0.0.0.0" connectip="172.16.0.1"
+}
+
+@test "$fw_driver - port forwarding with wildcard hostip ipv6 - tcp" {
+    add_dummy_interface_on_host dummy0 "fd65:8371:648b:0c06::1/64"
+    test_port_fw ip=6 hostip="::" connectip="fd65:8371:648b:0c06::1"
+}
+
+@test "$fw_driver - port forwarding with wildcard hostip ipv6 dual stack - tcp" {
+    add_dummy_interface_on_host dummy0 "fd65:8371:648b:0c06::1/64"
+    test_port_fw ip=dual hostip="::" connectip="fd65:8371:648b:0c06::1"
+}
+
+@test "$fw_driver - port forwarding with hostip ipv4 - udp" {
     add_dummy_interface_on_host dummy0 "172.16.0.1/24"
     test_port_fw proto=udp hostip="172.16.0.1"
 }
 
-@test "$fw_driver - port range forwarding with hostip ipv6 - udp" {
+@test "$fw_driver - port forwarding with hostip ipv6 - udp" {
     add_dummy_interface_on_host dummy0 "fd65:8371:648b:0c06::1/64"
     test_port_fw ip=6 proto=udp hostip="fd65:8371:648b:0c06::1"
 }
@@ -758,7 +788,7 @@ EOF
     assert_json "$default_route_v6" '.[0].metric' == "200" "v6 route metric matches v4"
 }
 
-@test "$fw_drive - default route metric" {
+@test "$fw_driver - default route metric" {
     run_netavark --file ${TESTSDIR}/testfiles/dualstack-bridge.json setup $(get_container_netns_path)
 
     run_in_container_netns ip -j route list match 0.0.0.0
@@ -770,4 +800,9 @@ EOF
     default_route_v6="$output"
     assert_json "$default_route_v6" '.[0].dst' == "default" "Default route was selected"
     assert_json "$default_route_v6" '.[0].metric' == "100" "v6 route metric matches v4"
+}
+
+@test "netavark error - invalid host_ip in port mappings" {
+    expected_rc=1 run_netavark -f ${TESTSDIR}/testfiles/invalid-port.json setup $(get_container_netns_path)
+    assert_json ".error" "invalid host ip \"abcd\" provided for port 8080" "host ip error"
 }

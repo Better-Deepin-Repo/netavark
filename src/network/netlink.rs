@@ -9,11 +9,14 @@ use crate::{
     wrap,
 };
 use log::{info, trace};
+use netlink_packet_core::{
+    NetlinkHeader, NetlinkMessage, NetlinkPayload, NLM_F_ACK, NLM_F_CREATE, NLM_F_DUMP, NLM_F_EXCL,
+    NLM_F_REQUEST,
+};
 use netlink_packet_route::{
     nlas::link::{Info, InfoData, InfoKind, Nla},
-    AddressMessage, LinkMessage, NetlinkHeader, NetlinkMessage, NetlinkPayload, RouteMessage,
-    RtnlMessage, AF_INET, AF_INET6, IFF_UP, NLM_F_ACK, NLM_F_CREATE, NLM_F_DUMP, NLM_F_EXCL,
-    NLM_F_REQUEST, RTN_UNICAST, RTPROT_STATIC, RTPROT_UNSPEC, RT_SCOPE_UNIVERSE, RT_TABLE_MAIN,
+    AddressMessage, LinkMessage, RouteMessage, RtnlMessage, AF_INET, AF_INET6, IFF_UP, RTN_UNICAST,
+    RTPROT_STATIC, RTPROT_UNSPEC, RT_SCOPE_UNIVERSE, RT_TABLE_MAIN,
 };
 use netlink_sys::{protocols::NETLINK_ROUTE, SocketAddr};
 
@@ -30,7 +33,7 @@ pub struct CreateLinkOptions {
     kind: InfoKind,
     pub info_data: Option<InfoData>,
     pub mtu: u32,
-    pub master_index: u32,
+    pub primary_index: u32,
     pub link: u32,
     pub mac: Vec<u8>,
     pub netns: RawFd,
@@ -167,6 +170,16 @@ impl Socket {
         }
 
         let result = self.make_netlink_request(RtnlMessage::DelLink(msg), NLM_F_ACK)?;
+        expect_netlink_result!(result, 0);
+        Ok(())
+    }
+
+    pub fn set_link_ns(&mut self, link_id: u32, netns_fd: i32) -> NetavarkResult<()> {
+        let mut msg = LinkMessage::default();
+        msg.header.index = link_id;
+        msg.nlas.push(Nla::NetNsFd(netns_fd));
+
+        let result = self.make_netlink_request(RtnlMessage::SetLink(msg), NLM_F_ACK)?;
         expect_netlink_result!(result, 0);
         Ok(())
     }
@@ -339,6 +352,28 @@ impl Socket {
         Ok(links)
     }
 
+    pub fn dump_addresses(&mut self) -> NetavarkResult<Vec<AddressMessage>> {
+        let msg = AddressMessage::default();
+
+        let results =
+            self.make_netlink_request(RtnlMessage::GetAddress(msg), NLM_F_DUMP | NLM_F_ACK)?;
+
+        let mut addresses = Vec::with_capacity(results.len());
+
+        for res in results {
+            match res {
+                RtnlMessage::NewAddress(m) => addresses.push(m),
+                m => {
+                    return Err(NetavarkError::Message(format!(
+                        "unexpected netlink message type: {}",
+                        m.message_type()
+                    )))
+                }
+            };
+        }
+        Ok(addresses)
+    }
+
     pub fn set_up(&mut self, id: LinkID) -> NetavarkResult<()> {
         let mut msg = LinkMessage::default();
 
@@ -369,10 +404,7 @@ impl Socket {
     }
 
     fn send(&mut self, msg: RtnlMessage, flags: u16) -> NetavarkResult<()> {
-        let mut packet = NetlinkMessage {
-            header: NetlinkHeader::default(),
-            payload: NetlinkPayload::from(msg),
-        };
+        let mut packet = NetlinkMessage::new(NetlinkHeader::default(), NetlinkPayload::from(msg));
         packet.header.flags = NLM_F_REQUEST | flags;
         packet.header.sequence_number = {
             self.sequence_number += 1;
@@ -440,6 +472,7 @@ impl Socket {
                             return Ok(result);
                         }
                     }
+                    _ => {}
                 };
 
                 offset += rx_packet.header.length as usize;
@@ -459,7 +492,7 @@ impl CreateLinkOptions {
             kind,
             info_data: None,
             mtu: 0,
-            master_index: 0,
+            primary_index: 0,
             link: 0,
             mac: vec![],
             // 0 is a valid fd, so use -1 by default
@@ -491,9 +524,9 @@ pub fn parse_create_link_options(msg: &mut LinkMessage, options: CreateLinkOptio
         msg.nlas.push(Nla::Address(options.mac));
     }
 
-    // add master device
-    if options.master_index != 0 {
-        msg.nlas.push(Nla::Master(options.master_index));
+    // add primary device
+    if options.primary_index != 0 {
+        msg.nlas.push(Nla::Master(options.primary_index));
     }
 
     // add link device

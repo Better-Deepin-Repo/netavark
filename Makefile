@@ -8,6 +8,7 @@ DESTDIR ?=
 PREFIX ?= /usr/local
 LIBEXECDIR ?= ${PREFIX}/libexec
 LIBEXECPODMAN ?= ${LIBEXECDIR}/podman
+SYSTEMDDIR ?= ${PREFIX}/lib/systemd/system
 
 SELINUXOPT ?= $(shell test -x /usr/sbin/selinuxenabled && selinuxenabled && echo -Z)
 # Get crate version by parsing the line that starts with version.
@@ -17,6 +18,9 @@ GIT_TAG ?= $(shell git describe --tags)
 # Set this to any non-empty string to enable unoptimized
 # build w/ debugging features.
 debug ?=
+
+# Set path to cargo executable
+CARGO ?= cargo
 
 # All complication artifacts, including dependencies and intermediates
 # will be stored here, for all architectures.  Use a non-default name
@@ -46,9 +50,16 @@ $(CARGO_TARGET_DIR):
 	mkdir -p $@
 
 .PHONY: build
-build: bin $(CARGO_TARGET_DIR)
-	cargo build $(release)
+build: build_netavark build_proxy_client
+
+.PHONY: build_netavark
+build_netavark: bin $(CARGO_TARGET_DIR)
+	$(CARGO) build $(release)
 	cp $(CARGO_TARGET_DIR)/$(profile)/netavark bin/netavark$(if $(debug),.debug,)
+
+.PHONY: examples
+examples: bin $(CARGO_TARGET_DIR)
+	cargo build --examples $(release)
 
 .PHONY: crate-publish
 crate-publish:
@@ -57,8 +68,8 @@ crate-publish:
 		exit 1;\
 	fi
 	@echo "It is expected that you have already done 'cargo login' before running this command. If not command may fail later"
-	cargo publish --dry-run
-	cargo publish
+	$(CARGO) publish --dry-run
+	$(CARGO) publish
 
 .PHONY: clean
 clean:
@@ -66,19 +77,35 @@ clean:
 	if [ "$(CARGO_TARGET_DIR)" = "targets" ]; then rm -rf targets; fi
 	$(MAKE) -C docs clean
 
+.PHONY: client
+client: bin $(CARGO_TARGET_DIR)
+	$(CARGO) build --bin netavark-dhcp-proxy-client $(release)
+
+
 .PHONY: docs
 docs: ## build the docs on the host
 	$(MAKE) -C docs
 
+NV_UNIT_FILES = contrib/systemd/system/netavark-dhcp-proxy.service
+
+%.service: %.service.in
+	sed -e 's;@@NETAVARK@@;$(LIBEXECPODMAN)/netavark;g' $< >$@.tmp.$$ \
+		&& mv -f $@.tmp.$$ $@
+
 .PHONY: install
-install:
+install: $(NV_UNIT_FILES)
 	install ${SELINUXOPT} -D -m0755 bin/netavark $(DESTDIR)/$(LIBEXECPODMAN)/netavark
 	$(MAKE) -C docs install
+	install ${SELINUXOPT} -m 755 -d ${DESTDIR}${SYSTEMDDIR}
+	install ${SELINUXOPT} -m 644 contrib/systemd/system/netavark-dhcp-proxy.socket ${DESTDIR}${SYSTEMDDIR}/netavark-dhcp-proxy.socket
+	install ${SELINUXOPT} -m 644 contrib/systemd/system/netavark-dhcp-proxy.service ${DESTDIR}${SYSTEMDDIR}/netavark-dhcp-proxy.service
 
 .PHONY: uninstall
 uninstall:
 	rm -f $(DESTDIR)/$(LIBEXECPODMAN)/netavark
 	rm -f $(PREFIX)/share/man/man1/netavark*.1
+	rm -f ${DESTDIR}${SYSTEMDDIR}/netavark-dhcp-proxy.service
+	rm -f ${DESTDIR}${SYSTEMDDIR}/netavark-dhcp-proxy.socket
 
 .PHONY: test
 test: unit integration
@@ -86,33 +113,35 @@ test: unit integration
 # Used by CI to compile the unit tests but not run them
 .PHONY: build_unit
 build_unit: $(CARGO_TARGET_DIR)
-	cargo test --no-run
+	$(CARGO) test --no-run
 
 .PHONY: unit
 unit: $(CARGO_TARGET_DIR)
-	cargo test
+	$(CARGO) test
 
 .PHONY: integration
-integration: $(CARGO_TARGET_DIR)
+integration: $(CARGO_TARGET_DIR) examples
 	# needs to be run as root or with podman unshare --rootless-netns
 	bats test/
+	bats test-dhcp/
 
 .PHONY: validate
 validate: $(CARGO_TARGET_DIR)
-	cargo fmt --all -- --check
-	cargo clippy -p netavark -- -D warnings
+	$(CARGO) fmt --all -- --check
+	$(CARGO) clippy -p netavark@$(CRATE_VERSION) -- -D warnings
+	$(MAKE) docs
 
 .PHONY: vendor-tarball
 vendor-tarball: build install.cargo-vendor-filterer
 	VERSION=$(shell bin/netavark --version | cut -f2 -d" ") && \
-	cargo vendor-filterer '--platform=*-unknown-linux-*' --format=tar.gz --prefix vendor/ && \
+	$(CARGO) vendor-filterer --format=tar.gz --prefix vendor/ && \
 	mv vendor.tar.gz netavark-v$$VERSION-vendor.tar.gz && \
 	gzip -c bin/netavark > netavark.gz && \
 	sha256sum netavark.gz netavark-v$$VERSION-vendor.tar.gz > sha256sum
 
 .PHONY: install.cargo-vendor-filterer
 install.cargo-vendor-filterer:
-	cargo install cargo-vendor-filterer
+	$(CARGO) install cargo-vendor-filterer
 
 .PHONY: mock-rpm
 mock-rpm:
@@ -121,3 +150,8 @@ mock-rpm:
 .PHONY: help
 help:
 	@echo "usage: make $(prog) [debug=1]"
+
+.PHONY: build_proxy_client
+build_proxy_client: bin $(CARGO_TARGET_DIR)
+	$(CARGO) build --bin netavark-dhcp-proxy-client $(release)
+	cp $(CARGO_TARGET_DIR)/$(profile)/netavark-dhcp-proxy-client bin/netavark-dhcp-proxy-client$(if $(debug),.debug,)

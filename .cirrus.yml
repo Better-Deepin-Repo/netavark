@@ -17,7 +17,7 @@ env:
     # Save a little typing (path relative to $CIRRUS_WORKING_DIR)
     SCRIPT_BASE: "./contrib/cirrus"
     FEDORA_NAME: "fedora-37"
-    IMAGE_SUFFIX: "c5518085466095616"
+    IMAGE_SUFFIX: "c20230405t152256z-f37f36d12"
     FEDORA_NETAVARK_IMAGE: "fedora-netavark-${IMAGE_SUFFIX}"
     AARDVARK_DNS_BRANCH: "main"
     AARDVARK_DNS_URL: "https://api.cirrus-ci.com/v1/artifact/github/containers/aardvark-dns/success/binary.zip?branch=${AARDVARK_DNS_BRANCH}"
@@ -50,26 +50,26 @@ build_task:
     # all PRs & branches will share caches with other PRs and branches
     # for a given $DEST_BRANCH and vX value.  Adjust vX if cache schema
     # changes.
-    fingerprint_key: "cargo_v2_${DEST_BRANCH}_amd64"
+    fingerprint_script: echo -e "cargo_v3_${DEST_BRANCH}_amd64\n---\n$(<Cargo.lock)\n---\n$(<Cargo.toml)"
     # Required to be set explicitly since fingerprint_key is also set
     reupload_on_changes: true
   targets_cache: &targets_cache
-    # Similar to cargo_cache, but holds the actual compiled artifacts. This must
-    # be scoped similar to bin_cache to avoid binary pollution across cache
-    # contexts.  For example, two PRs that happen to coincidentally change
-    # and use cache.  Adjust vX if cache schema changes.
+    # Similar to cargo_cache, but holds the actual compiled dependent artifacts.
+    # This should be scoped to a hash of the dependency-metadata lock file.
+    # Cirrus-CI will automatically use separate caches for PRs and branches.
     folder: "$CARGO_TARGET_DIR"
-    fingerprint_key: "targets_v2_${CIRRUS_TAG}${DEST_BRANCH}${CIRRUS_PR}_amd64" # Cache only within same tag, branch, or PR (branch will be 'pull/#')
+    fingerprint_script: echo -e "targets_v3_${CIRRUS_TAG}${DEST_BRANCH}${CIRRUS_PR}_amd64\n---\n$(<Cargo.lock)\n---\n$(<Cargo.toml)"
     reupload_on_changes: true
   bin_cache: &bin_cache
     # This simply prevents rebuilding bin/netavark for every subsequent task.
     folder: "$CIRRUS_WORKING_DIR/bin"
     # Avoid binary pollution by scoping this to only this specific build.
     # Adjust vX if cache schema changes.
-    fingerprint_key: "bin_v2_${CIRRUS_TAG}${DEST_BRANCH}${CIRRUS_PR}_amd64" # Cache only within same tag, branch, or PR (branch will be 'pull/#')
+    fingerprint_key: "bin_v3_${CIRRUS_TAG}${DEST_BRANCH}${CIRRUS_PR}_amd64" # Cache only within same tag, branch, or PR (branch will be 'pull/#')
     reupload_on_changes: true
   setup_script: &setup "$SCRIPT_BASE/setup.sh"
   main_script: &main "$SCRIPT_BASE/runner.sh $CIRRUS_TASK_NAME"
+  cache_grooming_script: &groom bash "$SCRIPT_BASE/cache_groom.sh"
   upload_caches: [ "cargo", "targets", "bin" ]
 
 
@@ -82,11 +82,15 @@ build_aarch64_task:
     architecture: arm64  # CAUTION: This has to be "arm64", not "aarch64"
   cargo_cache: &cargo_cache_aarch64
     folder: "$CARGO_HOME"
-    fingerprint_key: "cargo_v2_${DEST_BRANCH}_aarch64"
+    # N/B: Should exactly match (except for arch) line from build_task (above).
+    # (No, there isn't an easy way to not duplicate most of this :()
+    fingerprint_script: echo -e "cargo_v3_${DEST_BRANCH}_aarch64\n---\n$(<Cargo.lock)\n---\n$(<Cargo.toml)"
     reupload_on_changes: true
   targets_cache: &targets_cache_aarch64
     folder: "$CARGO_TARGET_DIR"
-    fingerprint_key: "targets_v2_${CIRRUS_TAG}${DEST_BRANCH}${CIRRUS_PR}_aarch64" # Cache only within same tag, branch, or PR (branch will be 'pull/#')
+    # N/B: Should exactly match (except for arch) line from build_task (above).
+    # (No, there isn't an easy way to not duplicate most of this :()
+    fingerprint_script: echo -e "targets_v3_${CIRRUS_TAG}${DEST_BRANCH}${CIRRUS_PR}_aarch64\n---\n$(<Cargo.lock)\n---\n$(<Cargo.toml)"
     reupload_on_changes: true
   bin_cache: &bin_cache_aarch64
     # This simply prevents rebuilding bin/netavark for every subsequent task.
@@ -95,15 +99,16 @@ build_aarch64_task:
     reupload_on_changes: true
   setup_script: *setup
   main_script: *main
+  cache_grooming_script: *groom
   upload_caches: [ "cargo", "targets", "bin" ]
   # Downstream CI needs the aarch64 binaries from this CI system.
   # However, we don't want to confuse architectures.
-  art_prep_script:
-    - cd bin
-    - ls -la
-    - mv netavark netavark.$(uname -m)-unknown-linux-gnu
-    - mv netavark.debug netavark.debug.$(uname -m)-unknown-linux-gnu
-    - mv netavark.info netavark.info.$(uname -m)-unknown-linux-gnu
+  art_prep_script: |
+    cd bin
+    ls -la
+    for filename in ./*; do
+      mv "$filename" "${filename}.$(uname -m)-unknown-linux-gnu"
+    done
   armbinary_artifacts:  # See success_task
     path: ./bin/netavark*
 
@@ -114,8 +119,8 @@ validate_task:
     - "build"
   gce_instance: &standard_gce_x86_64
     <<: *standard_build_gce_x86_64
-    cpu: 2
-    memory: "4Gb"
+    cpu: 8
+    memory: "8Gb"
   # From this point forward, all cache's become read-only - meaning
   # any changes made in this task aren't re-uploaded to the cache.
   # This avoids some flapping between tasks, along with the upload time.
@@ -226,8 +231,8 @@ ubuntu20_build_task:
       - "build"
     gce_instance: *standard_gce_x86_64
     container:
-        cpu: 2
-        memory: 2
+        cpu: 2 # Do not increase, will result in scheduling delays
+        memory: "8Gb"
         image: quay.io/libpod/ubuntu20rust
     script:
         - cargo build
@@ -239,8 +244,8 @@ centos9_build_task:
       - "build"
     gce_instance: *standard_gce_x86_64
     container:
-        cpu: 2
-        memory: 2
+        cpu: 2 # Do not increase, will result in scheduling delays
+        memory: "8Gb"
         image: quay.io/libpod/centos9rust
     script:
         - cargo build
