@@ -1,0 +1,24 @@
+commit fcdacab79eb7cfa417544a95a56b768ce973e3ca
+Author: Paul Holzinger <pholzing@redhat.com>
+Date:   Fri Aug 11 15:46:47 2023 +0200
+
+    bump rust edition to 2021
+    
+    Edition 2021 was added in rust v1.56.0, we already depend on newer rust
+    versions to build so we should be able to bump this without issues.
+    
+    Signed-off-by: Paul Holzinger <pholzing@redhat.com>
+
+Index: netavark/Cargo.toml
+===================================================================
+--- netavark.orig/Cargo.toml
++++ netavark/Cargo.toml
+@@ -1,7 +1,7 @@
+ [package]
+ name = "netavark"
+ version = "1.6.0"
+-edition = "2018"
++edition = "2021"
+ authors = ["github.com/containers"]
+ license = "Apache-2.0"
+ readme = "README.md"
