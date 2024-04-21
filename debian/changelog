@@ -1,6 +1,13 @@
+netavark (1.9.0-1) experimental; urgency=medium
+
+  * New upstream version: 1.9.0
+
+ -- Reinhard Tartler <siretart@tauware.de>  Sun, 14 Apr 2024 16:56:30 -0400
+
 netavark (1.6.0-1) experimental; urgency=medium
 
   * New upstream release
+  * Build against clap 4, Closes: #1040877
 
  -- Reinhard Tartler <siretart@tauware.de>  Tue, 16 Apr 2024 07:00:05 -0400
 

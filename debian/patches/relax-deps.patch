@@ -2,32 +2,53 @@ Index: netavark/Cargo.toml
 ===================================================================
 --- netavark.orig/Cargo.toml
 +++ netavark/Cargo.toml
-@@ -49,15 +49,15 @@ zbus = { version = "3.11.1" }
- nix = "0.26.2"
- rand = "0.8.5"
- sha2 = "0.10.6"
--netlink-packet-route = "0.15"
--netlink-packet-core = "0.5"
+@@ -32,22 +32,22 @@ deps-serde = ["chrono/serde", "url/serde
+ [dependencies]
+ anyhow = "1.0"
+ clap = { version = "~4.4.8", features = ["derive"] }
+-env_logger = "0.10.1"
++env_logger = "0.10"
+ ipnet = { version = "2", features = ["serde"] }
+ iptables = "0.5"
+ libc = "0.2"
+ log = "0.4.20"
+-serde = { version = "1.0.190", features = ["derive"], optional = true }
+-serde-value = "0.7.0"
+-serde_json = "1.0.108"
+-sysctl = "0.5.5"
++serde = { version = "1", features = ["derive"], optional = true }
++serde-value = "0.7"
++serde_json = "1"
++sysctl = "0.4"
+ url = "2.4.1"
+ zbus = { version = "3.14.1" }
+-nix = { version = "0.27.1", features = ["sched", "signal", "user"] }
+-rand = "0.8.5"
+-sha2 = "0.10.8"
++nix = { version = "0.27", features = ["sched", "signal", "user"] }
++rand = "0.8"
++sha2 = "0.10"
+ netlink-packet-utils = "0.5.2"
+-netlink-packet-route = "0.17.1"
 +netlink-packet-route = "0.17"
-+netlink-packet-core = "0.7"
+ netlink-packet-core = "0.7.0"
  fs2 = "0.4.3"
  netlink-sys = "0.8.5"
- tokio = { version = "1.27", features = ["rt", "rt-multi-thread", "signal", "fs"] }
- tokio-stream = { version = "0.1", features = ["net"] }
--tonic = "0.9"
-+tonic = "0.10"
+@@ -56,11 +56,11 @@ tokio-stream = { version = "0.1", featur
+ tonic = "0.10"
  mozim = "0.2.2"
--prost = "0.11"
-+prost = "0.12"
- futures-channel="0.3.28"
- futures-core = "0.3.28"
- futures-util = "0.3.28"
-@@ -68,7 +68,7 @@ tower = { version = "0.4" }
+ prost = "0.12"
+-futures-channel="0.3.29"
+-futures-core = "0.3.29"
+-futures-util = "0.3.29"
+-nispor = "1.2.14"
+-http = "0.2.11"
++futures-channel="0.3"
++futures-core = "0.3"
++futures-util = "0.3"
++nispor = "1.2"
++http = "0.2"
+ tower = { version = "0.4" }
  
  [build-dependencies]
- chrono = { version = "0.4.24", default-features = false, features = ["clock"] }
--tonic-build = "0.8"
-+tonic-build = "0.10"
- 
- [dev-dependencies]
- once_cell = "1.17.1"
+
