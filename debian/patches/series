@@ -1,5 +1,3 @@
 relax-tests.patch
 debian-paths.patch
-bump-netlink-deps.patch
-rust-2021.patch
 relax-deps.patch
