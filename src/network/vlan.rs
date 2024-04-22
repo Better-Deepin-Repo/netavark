@@ -1,5 +1,6 @@
 use log::{debug, error};
-use std::{collections::HashMap, net::IpAddr, os::unix::prelude::RawFd};
+use std::os::fd::BorrowedFd;
+use std::{collections::HashMap, net::IpAddr};
 
 use netlink_packet_route::nlas::link::{InfoData, InfoIpVlan, InfoKind, InfoMacVlan, Nla};
 use rand::distributions::{Alphanumeric, DistString};
@@ -13,7 +14,10 @@ use crate::{
 };
 
 use super::{
-    constants::{NO_CONTAINER_INTERFACE_ERROR, OPTION_METRIC, OPTION_MODE, OPTION_MTU},
+    constants::{
+        NO_CONTAINER_INTERFACE_ERROR, OPTION_BCLIM, OPTION_METRIC, OPTION_MODE, OPTION_MTU,
+        OPTION_NO_DEFAULT_ROUTE,
+    },
     core_utils::{self, get_ipam_addresses, parse_option, CoreUtils},
     driver::{self, DriverInfo},
     internal_types::IPAMAddresses,
@@ -27,6 +31,9 @@ enum KindData {
         mac_address: Option<Vec<u8>>,
         /// macvlan mode
         mode: u32,
+
+        // IFLA_MACVLAN_BC_CUTOFF option if set
+        bclim: Option<i32>,
     },
     IpVlan {
         /// ipvlan mode
@@ -56,6 +63,8 @@ struct InternalData {
     metric: Option<u32>,
     /// kind-specific data
     kind: KindData,
+    /// if set, no default gateway will be added
+    no_default_route: bool,
     // TODO: add vlan
 }
 
@@ -83,12 +92,14 @@ impl driver::NetworkDriver for Vlan<'_> {
             return Err(NetavarkError::msg(NO_CONTAINER_INTERFACE_ERROR));
         }
 
-        let mode = parse_option(&self.info.network.options, OPTION_MODE, String::default())?;
+        let mode: Option<String> = parse_option(&self.info.network.options, OPTION_MODE)?;
 
         let mut ipam = get_ipam_addresses(self.info.per_network_opts, self.info.network)?;
 
-        let mtu = parse_option(&self.info.network.options, OPTION_MTU, 0)?;
-        let metric = parse_option(&self.info.network.options, OPTION_METRIC, 100)?;
+        let mtu = parse_option(&self.info.network.options, OPTION_MTU)?.unwrap_or(0);
+        let metric = parse_option(&self.info.network.options, OPTION_METRIC)?.unwrap_or(100);
+        let no_default_route: bool =
+            parse_option(&self.info.network.options, OPTION_NO_DEFAULT_ROUTE)?.unwrap_or(false);
 
         // Remove gateways when marked as internal network
         if self.info.network.internal {
@@ -108,22 +119,22 @@ impl driver::NetworkDriver for Vlan<'_> {
             metric: Some(metric),
             kind: match self.info.network.driver.as_str() {
                 super::constants::DRIVER_IPVLAN => KindData::IpVlan {
-                    mode: CoreUtils::get_ipvlan_mode_from_string(&mode)?,
+                    mode: CoreUtils::get_ipvlan_mode_from_string(mode.as_deref())?,
                 },
-                super::constants::DRIVER_MACVLAN => KindData::MacVlan {
-                    mode: CoreUtils::get_macvlan_mode_from_string(&mode)?,
-                    mac_address: match &self.info.per_network_opts.static_mac {
-                        Some(mac) => Some(CoreUtils::decode_address_from_hex(mac)?),
-                        None => None,
-                    },
-                },
-                other => {
-                    return Err(NetavarkError::msg(format!(
-                        "unsupported VLAN type {}",
-                        other
-                    )))
+                super::constants::DRIVER_MACVLAN => {
+                    let bclim = parse_option(&self.info.network.options, OPTION_BCLIM)?;
+                    KindData::MacVlan {
+                        mode: CoreUtils::get_macvlan_mode_from_string(mode.as_deref())?,
+                        mac_address: match &self.info.per_network_opts.static_mac {
+                            Some(mac) => Some(CoreUtils::decode_address_from_hex(mac)?),
+                            None => None,
+                        },
+                        bclim,
+                    }
                 }
+                other => return Err(NetavarkError::msg(format!("unsupported VLAN type {other}"))),
             },
+            no_default_route,
         });
         Ok(())
     }
@@ -223,6 +234,11 @@ impl driver::NetworkDriver for Vlan<'_> {
             )?
         }
 
+        let routes = core_utils::create_route_list(&self.info.network.routes)?;
+        for route in routes.iter() {
+            netlink_sockets.1.del_route(route)?;
+        }
+
         netlink_sockets.1.del_link(netlink::LinkID::Name(
             self.info.per_network_opts.interface_name.to_string(),
         ))?;
@@ -235,8 +251,8 @@ fn setup(
     netns: &mut netlink::Socket,
     if_name: &str,
     data: &InternalData,
-    hostns_fd: RawFd,
-    netns_fd: RawFd,
+    hostns_fd: BorrowedFd<'_>,
+    netns_fd: BorrowedFd<'_>,
     kind_data: &KindData,
 ) -> NetavarkResult<String> {
     let primary_ifname = match data.host_interface_name.as_ref() {
@@ -250,18 +266,29 @@ fn setup(
         KindData::IpVlan { mode } => {
             let mut opts = CreateLinkOptions::new(if_name.to_string(), InfoKind::IpVlan);
             opts.mtu = data.mtu;
-            opts.netns = netns_fd;
+            opts.netns = Some(netns_fd);
             opts.link = link.header.index;
             opts.info_data = Some(InfoData::IpVlan(vec![InfoIpVlan::Mode(*mode)]));
             opts
         }
-        KindData::MacVlan { mode, mac_address } => {
+        KindData::MacVlan {
+            mode,
+            mac_address,
+            bclim,
+        } => {
             let mut opts = CreateLinkOptions::new(if_name.to_string(), InfoKind::MacVlan);
             opts.mac = mac_address.clone().unwrap_or_default();
             opts.mtu = data.mtu;
-            opts.netns = netns_fd;
+            opts.netns = Some(netns_fd);
             opts.link = link.header.index;
-            opts.info_data = Some(InfoData::MacVlan(vec![InfoMacVlan::Mode(*mode)]));
+
+            let mut mv_opts = vec![InfoMacVlan::Mode(*mode)];
+            if let Some(bclim) = bclim {
+                debug!("setting macvlan bclim to {bclim}");
+                mv_opts.push(InfoMacVlan::BcCutoff(*bclim))
+            }
+
+            opts.info_data = Some(InfoData::MacVlan(mv_opts));
             opts
         }
     };
@@ -276,7 +303,7 @@ fn setup(
             Ok(_) => break,
 
             Err(err) => match err {
-                NetavarkError::Netlink(ref e) if -e.code == libc::EEXIST => {
+                NetavarkError::Netlink(ref e) if -e.raw_code() == libc::EEXIST => {
                     let random = Alphanumeric.sample_string(&mut rand::thread_rng(), 10);
                     let tmp_name = "mv-".to_string() + &random;
                     let mut opts = opts.clone();
@@ -286,8 +313,7 @@ fn setup(
                         // if last element return directly
                         if i == 2 {
                             return Err(NetavarkError::msg(format!(
-                                "create {} interface: {}",
-                                kind_data, e
+                                "create {kind_data} interface: {e}"
                             )));
                         }
                         // retry, error could EEXIST again because we pick a random name
@@ -296,10 +322,10 @@ fn setup(
 
                     let link = netns
                         .get_link(netlink::LinkID::Name(tmp_name.clone()))
-                        .wrap(format!("get tmp {} interface", kind_data))?;
+                        .wrap(format!("get tmp {kind_data} interface"))?;
                     netns
                         .set_link_name(link.header.index, if_name.to_string())
-                        .wrap(format!("rename tmp {} interface", kind_data))
+                        .wrap(format!("rename tmp {kind_data} interface"))
                         .map_err(|err| {
                             // If there is an error here most likely the name in the netns is already used,
                             // make sure to delete the tmp interface.
@@ -316,7 +342,7 @@ fn setup(
                     // successful run, break out of loop
                     break;
                 }
-                err => return Err(err).wrap(format!("create {} interface", kind_data))?,
+                err => return Err(err).wrap(format!("create {kind_data} interface"))?,
             },
         }
     }
@@ -326,19 +352,26 @@ fn setup(
 
     let dev = netns
         .get_link(netlink::LinkID::Name(if_name.to_string()))
-        .wrap(format!("get {} interface", kind_data))?;
+        .wrap(format!("get {kind_data} interface"))?;
 
     for addr in &data.ipam.container_addresses {
         netns
             .add_addr(dev.header.index, addr)
-            .wrap(format!("add ip addr to {}", kind_data))?;
+            .wrap(format!("add ip addr to {kind_data}"))?;
     }
 
     netns
         .set_up(netlink::LinkID::ID(dev.header.index))
-        .wrap(format!("set {} up", kind_data))?;
+        .wrap(format!("set {kind_data} up"))?;
 
-    core_utils::add_default_routes(netns, &data.ipam.gateway_addresses, data.metric)?;
+    if !data.no_default_route {
+        core_utils::add_default_routes(netns, &data.ipam.gateway_addresses, data.metric)?;
+    }
+
+    // add static routes
+    for route in data.ipam.routes.iter() {
+        netns.add_route(route)?
+    }
 
     get_mac_address(dev.nlas)
 }
