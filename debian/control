@@ -40,10 +40,12 @@ Build-Depends: debhelper-compat (= 13),
  librust-tonic-build-dev,
  librust-tonic-dev,
  librust-url-dev,
- librust-zbus-dev,
+ librust-zbus-dev (>= 3.14),
  librust-zvariant-dev,
  libstd-rust-dev,
  rustc:native <!nocheck>,
+Build-Conflicts:
+ librust-zbus-1-dev,
 Standards-Version: 4.6.1
 Homepage: https://github.com/containers/netavark
 Vcs-Browser: https://salsa.debian.org/debian/netavark
