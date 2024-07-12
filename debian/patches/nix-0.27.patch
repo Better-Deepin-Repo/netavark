@@ -1,30 +1,39 @@
-From: Reinhard Tartler <siretart@tauware.de>
-Date: Fri, 12 Jul 2024 08:36:13 -0400
-Subject: nix-0.27
+This patch is based on the upstream commit described below, adapted for use
+in the Debian package by Peter Michael Green.
 
+commit 61b8e62f4205b1b2609054bb0d07771b56a5ef9c
+Author: Paul Holzinger <pholzing@redhat.com>
+Date:   Mon Sep 11 18:13:13 2023 +0200
+
+    bump nix to 0.27.1
+    
+    The nix crate removes all features by default so we need to explicitly
+    list what we use.
+    Second, the io API's changed and all use the AsFd trait now. This is
+    great for IO safety but will require larger changes to migrate from
+    RawFd. Thus I went the easy way and use unsafe (not really unsafe here)
+    and construct and a new BorrowedFd object (which impl AsFd) for the
+    setns call.
+    
+    Signed-off-by: Paul Holzinger <pholzing@redhat.com>
+
+Index: netavark/Cargo.toml
 ===================================================================
----
- Cargo.toml                | 2 +-
- src/network/core_utils.rs | 5 ++++-
- 2 files changed, 5 insertions(+), 2 deletions(-)
-
-diff --git a/Cargo.toml b/Cargo.toml
-index 7a61428..961b0a2 100644
---- a/Cargo.toml
-+++ b/Cargo.toml
+--- netavark.orig/Cargo.toml
++++ netavark/Cargo.toml
 @@ -46,7 +46,7 @@ serde_json = "1.0.95"
  sysctl = "0.5.4"
  url = "2.3.1"
  zbus = { version = "3.11.1" }
 -nix = "0.26.2"
-+nix = "0.27"
++nix = { version = "0.27.1", features = ["sched", "signal", "user", "fs"] }
  rand = "0.8.5"
  sha2 = "0.10.6"
  netlink-packet-route = "0.17"
-diff --git a/src/network/core_utils.rs b/src/network/core_utils.rs
-index b20117a..0d9dbe3 100644
---- a/src/network/core_utils.rs
-+++ b/src/network/core_utils.rs
+Index: netavark/src/network/core_utils.rs
+===================================================================
+--- netavark.orig/src/network/core_utils.rs
++++ netavark/src/network/core_utils.rs
 @@ -280,7 +280,10 @@ impl CoreUtils {
  }
  
