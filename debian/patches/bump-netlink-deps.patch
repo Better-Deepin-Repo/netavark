@@ -1,3 +1,7 @@
+From: Reinhard Tartler <siretart@tauware.de>
+Date: Fri, 12 Jul 2024 08:36:13 -0400
+Subject: bump-netlink-deps
+
 commit f92a065483828ba172c858e6cbc46f75a8b933d9
 Author: Paul Holzinger <pholzing@redhat.com>
 Date:   Mon Jul 10 14:54:12 2023 +0200
@@ -7,11 +11,16 @@ Date:   Mon Jul 10 14:54:12 2023 +0200
     There are breaking changes here so fix them, sigh.
     
     Signed-off-by: Paul Holzinger <pholzing@redhat.com>
+---
+ src/network/bridge.rs  | 4 ++--
+ src/network/netlink.rs | 8 ++++----
+ src/network/vlan.rs    | 2 +-
+ 3 files changed, 7 insertions(+), 7 deletions(-)
 
-Index: netavark/src/network/bridge.rs
-===================================================================
---- netavark.orig/src/network/bridge.rs
-+++ netavark/src/network/bridge.rs
+diff --git a/src/network/bridge.rs b/src/network/bridge.rs
+index b0a4b44..b0882bb 100644
+--- a/src/network/bridge.rs
++++ b/src/network/bridge.rs
 @@ -471,7 +471,7 @@ fn create_interfaces(
          Ok(bridge) => check_link_is_bridge(bridge, &data.bridge_interface_name)?,
          Err(err) => match err.unwrap() {
@@ -30,10 +39,10 @@ Index: netavark/src/network/bridge.rs
              format!(
                  "create veth pair: interface {} already exists on container namespace",
                  data.container_interface_name
-Index: netavark/src/network/netlink.rs
-===================================================================
---- netavark.orig/src/network/netlink.rs
-+++ netavark/src/network/netlink.rs
+diff --git a/src/network/netlink.rs b/src/network/netlink.rs
+index f379bed..d52ebe6 100644
+--- a/src/network/netlink.rs
++++ b/src/network/netlink.rs
 @@ -217,7 +217,7 @@ impl Socket {
              Ok(result) => result,
              Err(err) => match err {
@@ -56,10 +65,10 @@ Index: netavark/src/network/netlink.rs
                              return Err(e.into());
                          }
                          return Ok(result);
-Index: netavark/src/network/vlan.rs
-===================================================================
---- netavark.orig/src/network/vlan.rs
-+++ netavark/src/network/vlan.rs
+diff --git a/src/network/vlan.rs b/src/network/vlan.rs
+index 8015f22..6cf45f5 100644
+--- a/src/network/vlan.rs
++++ b/src/network/vlan.rs
 @@ -276,7 +276,7 @@ fn setup(
              Ok(_) => break,
  

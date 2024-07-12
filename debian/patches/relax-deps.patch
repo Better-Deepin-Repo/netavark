@@ -1,7 +1,16 @@
-Index: netavark/Cargo.toml
+From: Reinhard Tartler <siretart@tauware.de>
+Date: Fri, 12 Jul 2024 08:36:13 -0400
+Subject: relax-deps
+
 ===================================================================
---- netavark.orig/Cargo.toml
-+++ netavark/Cargo.toml
+---
+ Cargo.toml | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/Cargo.toml b/Cargo.toml
+index 4c63ded..7a61428 100644
+--- a/Cargo.toml
++++ b/Cargo.toml
 @@ -49,15 +49,15 @@ zbus = { version = "3.11.1" }
  nix = "0.26.2"
  rand = "0.8.5"
