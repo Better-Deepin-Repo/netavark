@@ -3,3 +3,4 @@ debian-paths.patch
 bump-netlink-deps.patch
 rust-2021.patch
 relax-deps.patch
+nix-0.27.patch
