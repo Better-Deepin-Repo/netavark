@@ -2,7 +2,7 @@ Index: netavark/Cargo.toml
 ===================================================================
 --- netavark.orig/Cargo.toml
 +++ netavark/Cargo.toml
-@@ -46,16 +46,16 @@ serde_json = "1.0.95"
+@@ -46,18 +46,18 @@ serde_json = "1.0.95"
  sysctl = "0.5.4"
  url = "2.3.1"
  zbus = { version = "3.11.1" }
@@ -21,8 +21,11 @@ Index: netavark/Cargo.toml
 -tonic = "0.9"
 +tonic = "0.10"
  mozim = "0.2.2"
- prost = "0.11"
+-prost = "0.11"
++prost = "0.12"
  futures-channel="0.3.28"
+ futures-core = "0.3.28"
+ futures-util = "0.3.28"
 @@ -68,7 +68,7 @@ tower = { version = "0.4" }
  
  [build-dependencies]
