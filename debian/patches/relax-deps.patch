@@ -1,4 +1,7 @@
-Index: netavark/Cargo.toml
+From: Reinhard Tartler <siretart@tauware.de>
+Date: Fri, 12 Jul 2024 08:36:13 -0400
+Subject: relax-deps
+
 ===================================================================
 --- netavark.orig/Cargo.toml
 +++ netavark/Cargo.toml

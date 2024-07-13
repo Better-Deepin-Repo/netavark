@@ -1,6 +1,6 @@
 From: Reinhard Tartler <siretart@debian.org>
-Description: Allow netavark to find aardvark-dns by default
-Bug-Debian: https://bugs.debian.org/1030302
+Date: Fri, 12 Jul 2024 08:36:13 -0400
+Subject: Allow netavark to find aardvark-dns by default
 
 Index: netavark/src/main.rs
 ===================================================================
