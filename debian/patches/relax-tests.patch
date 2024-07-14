@@ -8,7 +8,7 @@ Subject: relax-tests
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/test/001-basic.bats b/test/001-basic.bats
-index 53a77c4..379e033 100644
+index bc30a17..20e0a3b 100644
 --- a/test/001-basic.bats
 +++ b/test/001-basic.bats
 @@ -12,7 +12,7 @@ load helpers
