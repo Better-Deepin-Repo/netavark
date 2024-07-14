@@ -1,3 +1,10 @@
+netavark (1.9.0-3) experimental; urgency=medium
+
+  * refresh patches
+  * compile against rust-zbus 4.3, Closes: #1075895
+
+ -- Reinhard Tartler <siretart@tauware.de>  Sat, 13 Jul 2024 20:42:28 -0400
+
 netavark (1.9.0-2) experimental; urgency=medium
 
   * Upload to experimental
