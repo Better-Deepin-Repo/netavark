@@ -1,3 +1,7 @@
+From: Reinhard Tartler <siretart@tauware.de>
+Date: Sun, 14 Jul 2024 23:38:28 -0400
+Subject: nix-0.27
+
 This patch is based on the upstream commit described below, adapted for use
 in the Debian package by Peter Michael Green.
 
@@ -16,11 +20,14 @@ Date:   Mon Sep 11 18:13:13 2023 +0200
     setns call.
     
     Signed-off-by: Paul Holzinger <pholzing@redhat.com>
+---
+ src/network/core_utils.rs | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)
 
-Index: netavark/src/network/core_utils.rs
-===================================================================
---- netavark.orig/src/network/core_utils.rs
-+++ netavark/src/network/core_utils.rs
+diff --git a/src/network/core_utils.rs b/src/network/core_utils.rs
+index b20117a..0d9dbe3 100644
+--- a/src/network/core_utils.rs
++++ b/src/network/core_utils.rs
 @@ -280,7 +280,10 @@ impl CoreUtils {
  }
  

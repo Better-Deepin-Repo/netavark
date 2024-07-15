@@ -4,12 +4,14 @@ Subject: relax-deps
 
 ===================================================================
 ---
- Cargo.toml | 10 +++++-----
- 1 file changed, 5 insertions(+), 5 deletions(-)
+ Cargo.toml | 14 +++++++-------
+ 1 file changed, 7 insertions(+), 7 deletions(-)
 
+diff --git a/Cargo.toml b/Cargo.toml
+index 4c63ded..72f7fdb 100644
 --- a/Cargo.toml
 +++ b/Cargo.toml
-@@ -45,19 +45,19 @@
+@@ -45,19 +45,19 @@ serde-value = "0.7.0"
  serde_json = "1.0.95"
  sysctl = "0.5.4"
  url = "2.3.1"
@@ -35,7 +37,7 @@ Subject: relax-deps
  futures-channel="0.3.28"
  futures-core = "0.3.28"
  futures-util = "0.3.28"
-@@ -68,7 +68,7 @@
+@@ -68,7 +68,7 @@ tower = { version = "0.4" }
  
  [build-dependencies]
  chrono = { version = "0.4.24", default-features = false, features = ["clock"] }

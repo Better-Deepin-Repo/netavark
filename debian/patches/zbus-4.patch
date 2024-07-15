@@ -1,17 +1,18 @@
-From 6a4f5ce6a83b29ba744a7ab11ee28f0efbc2dc9c Mon Sep 17 00:00:00 2001
 From: Blair Noctis <n@sail.ng>
 Date: Fri, 12 Jul 2024 21:52:07 +0800
 Subject: [PATCH] fix(deps): update zbus to 4.3.1
 
 Signed-off-by: Blair Noctis <n@sail.ng>
 ---
- src/dhcp_proxy/lib.rs            |   5 +-
- src/firewall/firewalld.rs        | 185 ++++++++----------
- 5 files changed, 150 insertions(+), 359 deletions(-)
+ src/dhcp_proxy/lib.rs     |   5 +-
+ src/firewall/firewalld.rs | 195 ++++++++++++++++++----------------------------
+ 2 files changed, 78 insertions(+), 122 deletions(-)
 
+diff --git a/src/dhcp_proxy/lib.rs b/src/dhcp_proxy/lib.rs
+index 31474c6..1b39f73 100644
 --- a/src/dhcp_proxy/lib.rs
 +++ b/src/dhcp_proxy/lib.rs
-@@ -41,10 +41,7 @@
+@@ -41,10 +41,7 @@ pub mod g_rpc {
      impl From<DhcpV4Lease> for Lease {
          fn from(l: DhcpV4Lease) -> Lease {
              // Since these fields are optional as per mozim. Match them first and then set them
@@ -23,6 +24,8 @@ Signed-off-by: Blair Noctis <n@sail.ng>
              let mtu = l.mtu.unwrap_or(0) as u32;
  
              Lease {
+diff --git a/src/firewall/firewalld.rs b/src/firewall/firewalld.rs
+index 7779512..8514999 100644
 --- a/src/firewall/firewalld.rs
 +++ b/src/firewall/firewalld.rs
 @@ -1,10 +1,10 @@
@@ -37,7 +40,7 @@ Signed-off-by: Blair Noctis <n@sail.ng>
  use std::collections::HashMap;
  use std::vec::Vec;
  use zbus::{
-@@ -124,29 +124,22 @@
+@@ -124,29 +124,22 @@ impl firewall::FirewallDriver for FirewallD {
              "getPolicySettings",
              &(PORTPOLICYNAME),
          )?;
@@ -80,7 +83,7 @@ Signed-off-by: Blair Noctis <n@sail.ng>
              None => {
                  // No existing rules
                  // Make us a new array.
-@@ -196,15 +189,16 @@
+@@ -196,15 +189,16 @@ impl firewall::FirewallDriver for FirewallD {
          let mut rich_rules_option: Option<Array> = None;
          if setup_portfw.dns_port != 53 && !setup_portfw.dns_server_ips.is_empty() {
              let mut rich_rules: Array;
@@ -105,7 +108,7 @@ Signed-off-by: Blair Noctis <n@sail.ng>
                  None => {
                      // No existing rules
                      // Make us a new array.
-@@ -274,29 +268,22 @@
+@@ -274,29 +268,22 @@ impl firewall::FirewallDriver for FirewallD {
              "getPolicySettings",
              &(PORTPOLICYNAME),
          )?;
@@ -141,15 +144,14 @@ Signed-off-by: Blair Noctis <n@sail.ng>
 +            return Err(NetavarkError::msg(
                              "forward-port in firewalld policy object has a bad type",
 -                        ))
--                    }
--                },
 +                        ));
-+                    }
+                     }
+-                },
 +                }
                  None => {
                      // No existing rules - skip
                      None
-@@ -331,19 +318,23 @@
+@@ -331,19 +318,23 @@ impl firewall::FirewallDriver for FirewallD {
              for port_tuple in old_port_forwarding_rules.iter() {
                  match port_tuple {
                      Value::Structure(s) => {
@@ -176,7 +178,7 @@ Signed-off-by: Blair Noctis <n@sail.ng>
                          }
                      }
                      _ => {
-@@ -365,16 +356,14 @@
+@@ -365,16 +356,14 @@ impl firewall::FirewallDriver for FirewallD {
              && teardown_pf.config.dns_port != 53
              && !teardown_pf.config.dns_server_ips.is_empty()
          {
@@ -201,7 +203,7 @@ Signed-off-by: Blair Noctis <n@sail.ng>
          }
          if let Some(old_rich_rules) = old_rich_rules_option {
              let mut rules_to_delete: Vec<String> = vec![];
-@@ -395,17 +384,13 @@
+@@ -395,17 +384,13 @@ impl firewall::FirewallDriver for FirewallD {
              };
              let mut rich_rules = Array::new(sig);
              for rule in old_rich_rules.iter() {
@@ -226,7 +228,7 @@ Signed-off-by: Blair Noctis <n@sail.ng>
                  }
              }
              rich_rules_option = Some(rich_rules);
-@@ -462,15 +447,10 @@
+@@ -462,15 +447,10 @@ fn create_zone_if_not_exist(conn: &Connection, zone_name: &str) -> NetavarkResul
          "getZones",
          &(),
      )?;
@@ -246,7 +248,7 @@ Signed-off-by: Blair Noctis <n@sail.ng>
      for (_, &zone) in zones.iter().enumerate() {
          if zone == zone_name {
              debug!("Zone exists and is running");
-@@ -486,15 +466,10 @@
+@@ -486,15 +466,10 @@ fn create_zone_if_not_exist(conn: &Connection, zone_name: &str) -> NetavarkResul
          "getZoneNames",
          &(),
      )?;
@@ -266,7 +268,7 @@ Signed-off-by: Blair Noctis <n@sail.ng>
      for (_, &zone) in zones_perm.iter().enumerate() {
          if zone == zone_name {
              debug!("Zone exists and is not running");
-@@ -533,15 +508,9 @@
+@@ -533,15 +508,9 @@ pub fn add_source_subnets_to_zone(
              "getZoneOfSource",
              &(net.subnet.to_string()),
          )?;
@@ -285,7 +287,7 @@ Signed-off-by: Blair Noctis <n@sail.ng>
          if zone_string == zone_name {
              debug!("Subnet {} already exists in zone {}", net.subnet, zone_name);
              return Ok(());
-@@ -585,15 +554,10 @@
+@@ -585,15 +554,10 @@ fn add_policy_if_not_exist(
          "getPolicies",
          &(),
      )?;
@@ -305,7 +307,7 @@ Signed-off-by: Blair Noctis <n@sail.ng>
      for (_, &policy) in policies.iter().enumerate() {
          if policy == policy_name {
              debug!("Policy exists and is running");
-@@ -609,15 +573,10 @@
+@@ -609,15 +573,10 @@ fn add_policy_if_not_exist(
          "getPolicyNames",
          &(),
      )?;
