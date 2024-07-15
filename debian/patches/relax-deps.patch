@@ -7,12 +7,16 @@ Subject: relax-deps
  Cargo.toml | 10 +++++-----
  1 file changed, 5 insertions(+), 5 deletions(-)
 
-diff --git a/Cargo.toml b/Cargo.toml
-index 4c63ded..7a61428 100644
 --- a/Cargo.toml
 +++ b/Cargo.toml
-@@ -49,15 +49,15 @@ zbus = { version = "3.11.1" }
- nix = "0.26.2"
+@@ -45,19 +45,19 @@
+ serde_json = "1.0.95"
+ sysctl = "0.5.4"
+ url = "2.3.1"
+-zbus = { version = "3.11.1" }
+-nix = "0.26.2"
++zbus = "4.3.1"
++nix = "0.27"
  rand = "0.8.5"
  sha2 = "0.10.6"
 -netlink-packet-route = "0.15"
@@ -31,7 +35,7 @@ index 4c63ded..7a61428 100644
  futures-channel="0.3.28"
  futures-core = "0.3.28"
  futures-util = "0.3.28"
-@@ -68,7 +68,7 @@ tower = { version = "0.4" }
+@@ -68,7 +68,7 @@
  
  [build-dependencies]
  chrono = { version = "0.4.24", default-features = false, features = ["clock"] }

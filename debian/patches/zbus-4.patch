@@ -1,0 +1,327 @@
+From 6a4f5ce6a83b29ba744a7ab11ee28f0efbc2dc9c Mon Sep 17 00:00:00 2001
+From: Blair Noctis <n@sail.ng>
+Date: Fri, 12 Jul 2024 21:52:07 +0800
+Subject: [PATCH] fix(deps): update zbus to 4.3.1
+
+Signed-off-by: Blair Noctis <n@sail.ng>
+---
+ src/dhcp_proxy/lib.rs            |   5 +-
+ src/firewall/firewalld.rs        | 185 ++++++++----------
+ 5 files changed, 150 insertions(+), 359 deletions(-)
+
+--- a/src/dhcp_proxy/lib.rs
++++ b/src/dhcp_proxy/lib.rs
+@@ -41,10 +41,7 @@
+     impl From<DhcpV4Lease> for Lease {
+         fn from(l: DhcpV4Lease) -> Lease {
+             // Since these fields are optional as per mozim. Match them first and then set them
+-            let domain_name = match l.domain_name {
+-                None => String::from(""),
+-                Some(l) => l,
+-            };
++            let domain_name = l.domain_name.unwrap_or_default();
+             let mtu = l.mtu.unwrap_or(0) as u32;
+ 
+             Lease {
+--- a/src/firewall/firewalld.rs
++++ b/src/firewall/firewalld.rs
+@@ -1,10 +1,10 @@
+ use crate::error::{NetavarkError, NetavarkResult};
+-use crate::firewall;
+ use crate::network::internal_types::{PortForwardConfig, TearDownNetwork, TeardownPortForward};
+ use crate::network::types::PortMapping;
+ use crate::network::{internal_types, types};
+ use core::convert::TryFrom;
+ use log::{debug, info};
++use crate::{firewall, wrap};
+ use std::collections::HashMap;
+ use std::vec::Vec;
+ use zbus::{
+@@ -124,29 +124,22 @@
+             "getPolicySettings",
+             &(PORTPOLICYNAME),
+         )?;
+-        let policy_config: HashMap<&str, Value> = match policy_config_msg.body() {
+-            Ok(m) => m,
+-            Err(e) => {
+-                return Err(NetavarkError::wrap(
+-                    format!(
+-                        "Error decoding DBus message for policy {} configuration",
+-                        PORTPOLICYNAME
+-                    ),
+-                    e.into(),
+-                ))
+-            }
+-        };
+-
++        let body = policy_config_msg.body();
++        let mut policy_config: HashMap<&str, Value> = wrap!(
++            body.deserialize(),
++            format!("Error decoding DBus message for policy {PORTPOLICYNAME} configuration")
++        )?;
+         let mut port_forwarding_rules: Array;
+-        match policy_config.get("forward_ports") {
+-            Some(a) => match a {
+-                Value::Array(arr) => port_forwarding_rules = arr.clone(),
+-                _ => {
++         match policy_config.remove("forward_ports") {
++            Some(a) => {
++                port_forwarding_rules = if let Value::Array(arr) = a {
++                    arr
++                } else {
+                     return Err(NetavarkError::msg(
+                         "forward-port in firewalld policy object has a bad type",
+-                    ))
+-                }
+-            },
++                    ));
++                };
++            }
+             None => {
+                 // No existing rules
+                 // Make us a new array.
+@@ -196,15 +189,16 @@
+         let mut rich_rules_option: Option<Array> = None;
+         if setup_portfw.dns_port != 53 && !setup_portfw.dns_server_ips.is_empty() {
+             let mut rich_rules: Array;
+-            match policy_config.get("rich_rules") {
+-                Some(a) => match a {
+-                    Value::Array(arr) => rich_rules = arr.clone(),
+-                    _ => {
+-                        return Err(NetavarkError::msg(
++            match policy_config.remove("rich_rules") {
++                Some(a) => {
++                    rich_rules = if let Value::Array(arr) = a {
++                        arr
++                    } else {           
++            return Err(NetavarkError::msg(
+                             "forward-port in firewalld policy object has a bad type",
+-                        ))
+-                    }
+-                },
++                        ));
++                    };
++                }
+                 None => {
+                     // No existing rules
+                     // Make us a new array.
+@@ -274,29 +268,22 @@
+             "getPolicySettings",
+             &(PORTPOLICYNAME),
+         )?;
+-        let policy_config: HashMap<&str, Value> = match policy_config_msg.body() {
+-            Ok(m) => m,
+-            Err(e) => {
+-                return Err(NetavarkError::wrap(
+-                    format!(
+-                        "Error decoding DBus message for policy {} configuration",
+-                        PORTPOLICYNAME
+-                    ),
+-                    e.into(),
+-                ))
+-            }
+-        };
+-
++        let body = policy_config_msg.body();
++        let mut policy_config: HashMap<&str, Value> = wrap!(
++             body.deserialize(),
++            format!("Error decoding DBus message for policy {PORTPOLICYNAME} configuration")
++        )?;
+         let old_port_forwarding_rules_option: Option<Array> =
+-            match policy_config.get("forward_ports") {
+-                Some(a) => match a {
+-                    Value::Array(arr) => Some(arr.clone()),
+-                    _ => {
+-                        return Err(NetavarkError::msg(
++        match policy_config.remove("forward_ports") {
++                Some(a) => {
++                    if let Value::Array(arr) = a {
++                        Some(arr)
++                    } else {            
++            return Err(NetavarkError::msg(
+                             "forward-port in firewalld policy object has a bad type",
+-                        ))
+-                    }
+-                },
++                        ));
++                    }
++                }
+                 None => {
+                     // No existing rules - skip
+                     None
+@@ -331,19 +318,23 @@
+             for port_tuple in old_port_forwarding_rules.iter() {
+                 match port_tuple {
+                     Value::Structure(s) => {
+-                        let fields = s.clone().into_fields();
++                        let fields = s.fields();
+                         if fields.len() != 4 {
+                             return Err(NetavarkError::msg(
+                                 "Port forwarding rule that was not a 4-tuple encountered",
+                             ));
+                         }
+-                        let port_ip = match fields[3].clone() {
++                        let port_ip = match &fields[3] {
+                             Value::Str(s) => s.as_str().to_string(),
+                             _ => return Err(NetavarkError::msg("Port forwarding tuples must contain only strings, encountered a non-string object")),
+                         };
+                         debug!("IP string from firewalld is {}", port_ip);
+                         if port_ip != ipv4 && port_ip != ipv6 {
+-                            port_forwarding_rules.append(port_tuple.clone())?;
++                         port_forwarding_rules.append(port_tuple.try_clone()?)?;
++                         port_forwarding_rules.append(wrap!(
++                         port_tuple.try_clone(),
++                                "Unable to clone port forwarding tuple"
++                            )?)?;
+                         }
+                     }
+                     _ => {
+@@ -365,16 +356,14 @@
+             && teardown_pf.config.dns_port != 53
+             && !teardown_pf.config.dns_server_ips.is_empty()
+         {
+-            if let Some(a) = policy_config.get("rich_rules") {
+-                match a {
+-                    Value::Array(arr) => old_rich_rules_option = Some(arr.clone()),
+-                    _ => {
+-                        return Err(NetavarkError::msg(
+-                            "forward-port in firewalld policy object has a bad type",
+-                        ))
+-                    }
+-                }
+-            }
++              if let Some(a) = policy_config.remove("rich_rules") {
++                old_rich_rules_option = if let Value::Array(arr) = a {
++                    Some(arr)
++                } else {
++                    return Err(NetavarkError::msg(
++                        "forward-port in firewalld policy object has a bad type",
++                    ));
++                }; }
+         }
+         if let Some(old_rich_rules) = old_rich_rules_option {
+             let mut rules_to_delete: Vec<String> = vec![];
+@@ -395,17 +384,13 @@
+             };
+             let mut rich_rules = Array::new(sig);
+             for rule in old_rich_rules.iter() {
+-                match rule {
+-                    Value::Str(old_rule) => {
+-                        if !rules_to_delete.contains(&old_rule.to_string()) {
+-                            rich_rules.append(rule.clone())?;
+-                        }
+-                    }
+-                    _ => {
+-                        return Err(NetavarkError::msg(
+-                            "Rich rule that was not a string encountered",
+-                        ))
+-                    }
++               let Ok(Value::Str(old_rule)) = rule.try_clone() else {
++                    return Err(NetavarkError::msg(
++                        "Rich rule that was not a string encountered",
++                    ));
++                };
++                if !rules_to_delete.contains(&old_rule.to_string()) {
++                    rich_rules.append(Value::Str(old_rule))?;    
+                 }
+             }
+             rich_rules_option = Some(rich_rules);
+@@ -462,15 +447,10 @@
+         "getZones",
+         &(),
+     )?;
+-    let zones: Vec<&str> = match zones_msg.body() {
+-        Ok(b) => b,
+-        Err(e) => {
+-            return Err(NetavarkError::wrap(
+-                "Error decoding DBus message for active zones",
+-                e.into(),
+-            ))
+-        }
+-    };
++    let body = zones_msg.body();
++    let zones: Vec<&str> = body.deserialize().map_err(|e| {
++        NetavarkError::wrap("Error decoding DBus message for active zones", e.into())
++    })?;
+     for (_, &zone) in zones.iter().enumerate() {
+         if zone == zone_name {
+             debug!("Zone exists and is running");
+@@ -486,15 +466,10 @@
+         "getZoneNames",
+         &(),
+     )?;
+-    let zones_perm: Vec<&str> = match perm_zones_msg.body() {
+-        Ok(b) => b,
+-        Err(e) => {
+-            return Err(NetavarkError::wrap(
+-                "Error decoding DBus message for permanent zones",
+-                e.into(),
+-            ))
+-        }
+-    };
++    let body = perm_zones_msg.body();
++    let zones_perm: Vec<&str> = body.deserialize().map_err(|e| {
++        NetavarkError::wrap("Error decoding DBus message for permanent zones", e.into())
++    })?;
+     for (_, &zone) in zones_perm.iter().enumerate() {
+         if zone == zone_name {
+             debug!("Zone exists and is not running");
+@@ -533,15 +508,9 @@
+             "getZoneOfSource",
+             &(net.subnet.to_string()),
+         )?;
+-        let zone_string: String = match subnet_zone.body() {
+-            Ok(s) => s,
+-            Err(e) => {
+-                return Err(NetavarkError::wrap(
+-                    "Error decoding DBus message for zone of subnet",
+-                    e.into(),
+-                ))
+-            }
+-        };
++        let zone_string: String = subnet_zone.body().deserialize().map_err(|e| {
++            NetavarkError::wrap("Error decoding DBus message for zone of subnet", e.into())
++        })?;
+         if zone_string == zone_name {
+             debug!("Subnet {} already exists in zone {}", net.subnet, zone_name);
+             return Ok(());
+@@ -585,15 +554,10 @@
+         "getPolicies",
+         &(),
+     )?;
+-    let policies: Vec<&str> = match policies_msg.body() {
+-        Ok(v) => v,
+-        Err(e) => {
+-            return Err(NetavarkError::wrap(
+-                "Error decoding policy list response",
+-                e.into(),
+-            ))
+-        }
+-    };
++    let body = policies_msg.body();
++    let policies: Vec<&str> = body
++        .deserialize()
++        .map_err(|e| NetavarkError::wrap("Error decoding policy list response", e.into()))?;
+     for (_, &policy) in policies.iter().enumerate() {
+         if policy == policy_name {
+             debug!("Policy exists and is running");
+@@ -609,15 +573,10 @@
+         "getPolicyNames",
+         &(),
+     )?;
+-    let perm_policies: Vec<&str> = match perm_policies_msg.body() {
+-        Ok(v) => v,
+-        Err(e) => {
+-            return Err(NetavarkError::wrap(
+-                "Error decoding permanent policy list response",
+-                e.into(),
+-            ))
+-        }
+-    };
++    let body = perm_policies_msg.body();
++    let perm_policies: Vec<&str> = body.deserialize().map_err(|e| {
++        NetavarkError::wrap("Error decoding permanent policy list response", e.into())
++    })?;
+     for (_, &policy) in perm_policies.iter().enumerate() {
+         if policy == policy_name {
+             debug!("Policy exists and is not running");
