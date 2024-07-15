@@ -42,7 +42,7 @@ Build-Depends: debhelper-compat (= 13),
  librust-zvariant-dev,
  libstd-rust-dev,
  rustc:native <!nocheck>,
-Standards-Version: 4.6.1
+Standards-Version: 4.7.0
 Homepage: https://github.com/containers/netavark
 Vcs-Browser: https://salsa.debian.org/debian/netavark
 Vcs-Git: https://salsa.debian.org/debian/netavark.git
