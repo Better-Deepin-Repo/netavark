@@ -2,21 +2,20 @@ From: Reinhard Tartler <siretart@debian.org>
 Date: Fri, 12 Jul 2024 08:36:13 -0400
 Subject: Allow netavark to find aardvark-dns by default
 
-Bug-Debian: https://bugs.debian.org/1030302
 ---
  src/main.rs | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/src/main.rs b/src/main.rs
-index 3c0a1b7..1519dfa 100644
+index 98ed85c..678a45e 100644
 --- a/src/main.rs
 +++ b/src/main.rs
-@@ -52,7 +52,7 @@ fn main() {
+@@ -58,7 +58,7 @@ fn main() {
      let rootless = opts.rootless.unwrap_or(false);
      let aardvark_bin = opts
          .aardvark_binary
--        .unwrap_or_else(|| String::from("/usr/libexec/podman/aardvark-dns"));
-+        .unwrap_or_else(|| String::from("/usr/lib/podman/aardvark-dns"));
+-        .unwrap_or_else(|| OsString::from("/usr/libexec/podman/aardvark-dns"));
++        .unwrap_or_else(|| OsString::from("/usr/lib/podman/aardvark-dns"));
      let result = match opts.subcmd {
          SubCommand::Setup(setup) => setup.exec(
              opts.file,

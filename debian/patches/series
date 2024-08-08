@@ -1,7 +1,4 @@
 relax-tests.patch
 debian-paths.patch
-bump-netlink-deps.patch
-rust-2021.patch
 relax-deps.patch
-zbus-4.patch
-nix-0.27.patch
+0004-fix-deps-update-zbus-to-4.3.1.patch

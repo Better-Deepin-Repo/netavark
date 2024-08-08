@@ -4,45 +4,19 @@ Subject: relax-deps
 
 ===================================================================
 ---
- Cargo.toml | 14 +++++++-------
- 1 file changed, 7 insertions(+), 7 deletions(-)
+ Cargo.toml | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/Cargo.toml b/Cargo.toml
-index 4c63ded..72f7fdb 100644
+index 9935fc5..700f25f 100644
 --- a/Cargo.toml
 +++ b/Cargo.toml
-@@ -45,19 +45,19 @@ serde-value = "0.7.0"
- serde_json = "1.0.95"
- sysctl = "0.5.4"
- url = "2.3.1"
--zbus = { version = "3.11.1" }
--nix = "0.26.2"
-+zbus = "4.3.1"
-+nix = "0.27"
- rand = "0.8.5"
- sha2 = "0.10.6"
--netlink-packet-route = "0.15"
--netlink-packet-core = "0.5"
-+netlink-packet-route = "0.17"
-+netlink-packet-core = "0.7"
- fs2 = "0.4.3"
- netlink-sys = "0.8.5"
- tokio = { version = "1.27", features = ["rt", "rt-multi-thread", "signal", "fs"] }
- tokio-stream = { version = "0.1", features = ["net"] }
--tonic = "0.9"
-+tonic = "0.10"
- mozim = "0.2.2"
--prost = "0.11"
-+prost = "0.12"
- futures-channel="0.3.28"
- futures-core = "0.3.28"
- futures-util = "0.3.28"
-@@ -68,7 +68,7 @@ tower = { version = "0.4" }
+@@ -59,7 +59,7 @@ prost = "0.12"
+ futures-channel="0.3.29"
+ futures-core = "0.3.29"
+ futures-util = "0.3.29"
+-nispor = "1.2.14"
++nispor = "1.2.13"
+ http = "0.2.11"
+ tower = { version = "0.4" }
  
- [build-dependencies]
- chrono = { version = "0.4.24", default-features = false, features = ["clock"] }
--tonic-build = "0.8"
-+tonic-build = "0.10"
- 
- [dev-dependencies]
- once_cell = "1.17.1"

@@ -1,3 +1,22 @@
+netavark (1.9.0-3) experimental; urgency=medium
+
+  * refresh patches
+  * compile against rust-zbus 4.3, Closes: #1075895
+
+ -- Reinhard Tartler <siretart@tauware.de>  Sat, 13 Jul 2024 20:42:28 -0400
+
+netavark (1.9.0-2) experimental; urgency=medium
+
+  * Upload to experimental
+
+ -- Reinhard Tartler <siretart@tauware.de>  Sat, 13 Jul 2024 09:06:28 -0400
+
+netavark (1.9.0-1) experimental; urgency=medium
+
+  * New upstream version: 1.9.0
+
+ -- Reinhard Tartler <siretart@tauware.de>  Sun, 14 Apr 2024 16:56:30 -0400
+
 netavark (1.6.0-2.1) unstable; urgency=medium
 
   * Non-maintainer upload.
@@ -6,17 +25,10 @@ netavark (1.6.0-2.1) unstable; urgency=medium
 
  -- Matthias Geiger <werdahias@riseup.net>  Sun, 14 Jul 2024 19:15:16 +0200
 
-netavark (1.6.0-2) unstable; urgency=medium
-
-  * Upload to unstable, Closes: #1052432
-  * Build against prost-0.12
-  * Drop build-dep rust-simple-error, Closes: #1074281
-
- -- Reinhard Tartler <siretart@tauware.de>  Fri, 12 Jul 2024 08:23:50 -0400
-
 netavark (1.6.0-1) experimental; urgency=medium
 
   * New upstream release
+  * Build against clap 4, Closes: #1040877
 
  -- Reinhard Tartler <siretart@tauware.de>  Tue, 16 Apr 2024 07:00:05 -0400
 
