@@ -1,3 +1,9 @@
+netavark (1.9.0-4) unstable; urgency=medium
+
+  * Upload to unstable
+
+ -- Reinhard Tartler <siretart@tauware.de>  Thu, 08 Aug 2024 07:03:51 -0400
+
 netavark (1.9.0-3) experimental; urgency=medium
 
   * refresh patches
