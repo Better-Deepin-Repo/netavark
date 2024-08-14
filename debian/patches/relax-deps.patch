@@ -7,16 +7,16 @@ Subject: relax-deps
  Cargo.toml | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
 
-diff --git a/Cargo.toml b/Cargo.toml
-index 9935fc5..700f25f 100644
---- a/Cargo.toml
-+++ b/Cargo.toml
-@@ -59,7 +59,7 @@ prost = "0.12"
- futures-channel="0.3.29"
- futures-core = "0.3.29"
- futures-util = "0.3.29"
--nispor = "1.2.14"
-+nispor = "1.2.13"
- http = "0.2.11"
- tower = { version = "0.4" }
+Index: netavark/Cargo.toml
+===================================================================
+--- netavark.orig/Cargo.toml
++++ netavark/Cargo.toml
+@@ -60,7 +60,7 @@ prost = "0.12.6"
+ futures-channel = "0.3.30"
+ futures-core = "0.3.30"
+ futures-util = "0.3.30"
+-nispor = "1.2.19"
++nispor = { version = ">= 1.2" }
+ tower = { version = "0.4.13" }
  
+ [build-dependencies]
