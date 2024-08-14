@@ -81,6 +81,11 @@ pub enum NetavarkError {
     DHCPProxy(tonic::Status),
 
     List(NetavarkErrorList),
+
+    Nftables(nftables::helper::NftablesError),
+
+    SubnetParse(ipnet::AddrParseError),
+    AddrParse(std::net::AddrParseError),
 }
 
 /// Internal struct for JSON output
@@ -139,27 +144,30 @@ impl NetavarkError {
 impl fmt::Display for NetavarkError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            NetavarkError::Message(s) => write!(f, "{}", s),
-            NetavarkError::ExitCode(s, _) => write!(f, "{}", s),
-            NetavarkError::Chain(s, e) => write!(f, "{}: {}", s, e),
-            NetavarkError::Io(e) => write!(f, "IO error: {}", e),
-            NetavarkError::Dbus(e) => write!(f, "DBus error: {}", e),
-            NetavarkError::DbusVariant(e) => write!(f, "DBus Variant Error: {}", e),
-            NetavarkError::Sysctl(e) => write!(f, "Sysctl error: {}", e),
-            NetavarkError::Serde(e) => write!(f, "JSON Decoding error: {}", e),
-            NetavarkError::Netlink(e) => write!(f, "Netlink error: {}", e),
-            NetavarkError::DHCPProxy(e) => write!(f, "dhcp proxy error: {}", e),
+            NetavarkError::Message(s) => write!(f, "{s}"),
+            NetavarkError::ExitCode(s, _) => write!(f, "{s}"),
+            NetavarkError::Chain(s, e) => write!(f, "{s}: {e}"),
+            NetavarkError::Io(e) => write!(f, "IO error: {e}"),
+            NetavarkError::Dbus(e) => write!(f, "DBus error: {e}"),
+            NetavarkError::DbusVariant(e) => write!(f, "DBus Variant Error: {e}"),
+            NetavarkError::Sysctl(e) => write!(f, "Sysctl error: {e}"),
+            NetavarkError::Serde(e) => write!(f, "JSON Decoding error: {e}"),
+            NetavarkError::Netlink(e) => write!(f, "Netlink error: {e}"),
+            NetavarkError::DHCPProxy(e) => write!(f, "dhcp proxy error: {e}"),
             NetavarkError::List(list) => {
                 if list.0.len() == 1 {
                     write!(f, "{}", list.0[0])
                 } else {
                     write!(f, "netavark encountered multiple errors:")?;
                     for e in &list.0 {
-                        write!(f, "\n\t- {}", e)?;
+                        write!(f, "\n\t- {e}")?;
                     }
                     Ok(())
                 }
             }
+            NetavarkError::Nftables(e) => write!(f, "nftables error: {e}"),
+            NetavarkError::SubnetParse(e) => write!(f, "parsing IP subnet error: {e}"),
+            NetavarkError::AddrParse(e) => write!(f, "parsing IP address error: {e}"),
         }
     }
 }
@@ -198,7 +206,7 @@ impl From<serde_json::Error> for NetavarkError {
 
 impl From<ipnet::PrefixLenError> for NetavarkError {
     fn from(e: ipnet::PrefixLenError) -> Self {
-        NetavarkError::Message(format!("{}", e))
+        NetavarkError::Message(format!("{e}"))
     }
 }
 
@@ -211,5 +219,23 @@ impl From<netlink_packet_core::error::ErrorMessage> for NetavarkError {
 impl From<tonic::Status> for NetavarkError {
     fn from(err: tonic::Status) -> Self {
         NetavarkError::DHCPProxy(err)
+    }
+}
+
+impl From<nftables::helper::NftablesError> for NetavarkError {
+    fn from(err: nftables::helper::NftablesError) -> Self {
+        NetavarkError::Nftables(err)
+    }
+}
+
+impl From<ipnet::AddrParseError> for NetavarkError {
+    fn from(err: ipnet::AddrParseError) -> Self {
+        NetavarkError::SubnetParse(err)
+    }
+}
+
+impl From<std::net::AddrParseError> for NetavarkError {
+    fn from(err: std::net::AddrParseError) -> Self {
+        NetavarkError::AddrParse(err)
     }
 }

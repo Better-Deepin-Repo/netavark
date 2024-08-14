@@ -3,13 +3,19 @@ use crate::network::internal_types::{
     PortForwardConfig, SetupNetwork, TearDownNetwork, TeardownPortForward,
 };
 use log::{debug, info};
-use std::env;
 use zbus::blocking::Connection;
 
 pub mod firewalld;
 pub mod fwnone;
 pub mod iptables;
+pub mod nft;
+pub mod state;
 mod varktables;
+
+const IPTABLES: &str = "iptables";
+const FIREWALLD: &str = "firewalld";
+const NFTABLES: &str = "nftables";
+const NONE: &str = "none";
 
 /// Firewall drivers have the ability to set up per-network firewall forwarding
 /// and port mappings.
@@ -23,6 +29,9 @@ pub trait FirewallDriver {
     fn setup_port_forward(&self, setup_pw: PortForwardConfig) -> NetavarkResult<()>;
     /// Tear down port-forwarding firewall rules for a single container.
     fn teardown_port_forward(&self, teardown_pf: TeardownPortForward) -> NetavarkResult<()>;
+
+    /// Return the name of the driver.
+    fn driver_name(&self) -> &str;
 }
 
 /// Types of firewall backend
@@ -34,13 +43,12 @@ enum FirewallImpl {
 }
 
 /// What firewall implementations does this system support?
-fn get_firewall_impl() -> NetavarkResult<FirewallImpl> {
-    // First, check the NETAVARK_FW env var.
+fn get_firewall_impl(driver_name: Option<String>) -> NetavarkResult<FirewallImpl> {
     // It respects "firewalld", "iptables", "nftables", "none".
-    if let Ok(var) = env::var("NETAVARK_FW") {
-        debug!("Forcibly using firewall driver {}", var);
-        match var.to_lowercase().as_str() {
-            "firewalld" => {
+    if let Some(driver) = driver_name {
+        debug!("Forcibly using firewall driver {driver}");
+        match driver.to_lowercase().as_str() {
+            FIREWALLD => {
                 let conn = match Connection::system() {
                     Ok(c) => c,
                     Err(e) => {
@@ -52,21 +60,18 @@ fn get_firewall_impl() -> NetavarkResult<FirewallImpl> {
                 };
                 return Ok(FirewallImpl::Firewalld(conn));
             }
-            "iptables" => return Ok(FirewallImpl::Iptables),
-            "nftables" => return Ok(FirewallImpl::Nftables),
-            "none" => return Ok(FirewallImpl::Fwnone),
+            IPTABLES => return Ok(FirewallImpl::Iptables),
+            NFTABLES => return Ok(FirewallImpl::Nftables),
+            NONE => return Ok(FirewallImpl::Fwnone),
             any => {
                 return Err(NetavarkError::Message(format!(
-                    "Must provide a valid firewall backend, got {}",
-                    any
+                    "Must provide a valid firewall backend, got {any}"
                 )))
             }
         }
     }
 
-    // Until firewalld 1.1.0 with support for self-port forwarding lands:
-    // Just use iptables
-    Ok(FirewallImpl::Iptables)
+    get_default_fw_impl()
 
     // Is firewalld running?
     // let conn = match Connection::system() {
@@ -85,10 +90,27 @@ fn get_firewall_impl() -> NetavarkResult<FirewallImpl> {
     // }
 }
 
+#[cfg(default_fw = "nftables")]
+fn get_default_fw_impl() -> NetavarkResult<FirewallImpl> {
+    Ok(FirewallImpl::Nftables)
+}
+
+#[cfg(default_fw = "iptables")]
+fn get_default_fw_impl() -> NetavarkResult<FirewallImpl> {
+    Ok(FirewallImpl::Iptables)
+}
+
+#[cfg(default_fw = "none")]
+fn get_default_fw_impl() -> NetavarkResult<FirewallImpl> {
+    Ok(FirewallImpl::Fwnone)
+}
+
 /// Get the preferred firewall implementation for the current system
 /// configuration.
-pub fn get_supported_firewall_driver() -> NetavarkResult<Box<dyn FirewallDriver>> {
-    match get_firewall_impl() {
+pub fn get_supported_firewall_driver(
+    driver_name: Option<String>,
+) -> NetavarkResult<Box<dyn FirewallDriver>> {
+    match get_firewall_impl(driver_name) {
         Ok(fw) => match fw {
             FirewallImpl::Iptables => {
                 info!("Using iptables firewall driver");
@@ -100,9 +122,7 @@ pub fn get_supported_firewall_driver() -> NetavarkResult<Box<dyn FirewallDriver>
             }
             FirewallImpl::Nftables => {
                 info!("Using nftables firewall driver");
-                Err(NetavarkError::msg(
-                    "nftables support presently not available",
-                ))
+                nft::new()
             }
             FirewallImpl::Fwnone => {
                 info!("Not using firewall");

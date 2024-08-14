@@ -63,7 +63,7 @@ examples: bin $(CARGO_TARGET_DIR)
 
 .PHONY: crate-publish
 crate-publish:
-	@if [ "$(CRATE_VERSION)" != "$(GIT_TAG)" ]; then\
+	@if [ "v$(CRATE_VERSION)" != "$(GIT_TAG)" ]; then\
 		echo "Git tag is not equivalent to the version set in Cargo.toml. Please checkout the correct tag";\
 		exit 1;\
 	fi
@@ -86,7 +86,8 @@ client: bin $(CARGO_TARGET_DIR)
 docs: ## build the docs on the host
 	$(MAKE) -C docs
 
-NV_UNIT_FILES = contrib/systemd/system/netavark-dhcp-proxy.service
+NV_UNIT_FILES = contrib/systemd/system/netavark-dhcp-proxy.service \
+				contrib/systemd/system/netavark-firewalld-reload.service
 
 %.service: %.service.in
 	sed -e 's;@@NETAVARK@@;$(LIBEXECPODMAN)/netavark;g' $< >$@.tmp.$$ \
@@ -94,15 +95,16 @@ NV_UNIT_FILES = contrib/systemd/system/netavark-dhcp-proxy.service
 
 .PHONY: install
 install: $(NV_UNIT_FILES)
-	install ${SELINUXOPT} -D -m0755 bin/netavark $(DESTDIR)/$(LIBEXECPODMAN)/netavark
+	install ${SELINUXOPT} -D -m0755 bin/netavark $(DESTDIR)$(LIBEXECPODMAN)/netavark
 	$(MAKE) -C docs install
 	install ${SELINUXOPT} -m 755 -d ${DESTDIR}${SYSTEMDDIR}
 	install ${SELINUXOPT} -m 644 contrib/systemd/system/netavark-dhcp-proxy.socket ${DESTDIR}${SYSTEMDDIR}/netavark-dhcp-proxy.socket
 	install ${SELINUXOPT} -m 644 contrib/systemd/system/netavark-dhcp-proxy.service ${DESTDIR}${SYSTEMDDIR}/netavark-dhcp-proxy.service
+	install ${SELINUXOPT} -m 644 contrib/systemd/system/netavark-firewalld-reload.service ${DESTDIR}${SYSTEMDDIR}/netavark-firewalld-reload.service
 
 .PHONY: uninstall
 uninstall:
-	rm -f $(DESTDIR)/$(LIBEXECPODMAN)/netavark
+	rm -f $(DESTDIR)$(LIBEXECPODMAN)/netavark
 	rm -f $(PREFIX)/share/man/man1/netavark*.1
 	rm -f ${DESTDIR}${SYSTEMDDIR}/netavark-dhcp-proxy.service
 	rm -f ${DESTDIR}${SYSTEMDDIR}/netavark-dhcp-proxy.socket

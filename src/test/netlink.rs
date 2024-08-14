@@ -1,7 +1,9 @@
 #[cfg(test)]
 mod tests {
+    use std::net::{IpAddr, Ipv4Addr};
+
     use netavark::network::netlink::*;
-    use netlink_packet_route::{address, nlas::link::InfoKind};
+    use netlink_packet_route::{address, link::InfoKind};
 
     macro_rules! test_setup {
         () => {
@@ -91,7 +93,7 @@ mod tests {
 
         let out = run_command!("ip", "addr", "show", "test1");
         let stdout = String::from_utf8(out.stdout).unwrap();
-        eprintln!("{}", stdout);
+        eprintln!("{stdout}");
         assert!(out.status.success(), "failed to show addr via ip");
 
         assert!(!stdout.contains(net), "addr does exist");
@@ -134,7 +136,7 @@ mod tests {
 
         let out = run_command!("ip", "route", "show");
         let stdout = String::from_utf8(out.stdout).unwrap();
-        eprintln!("{}", stdout);
+        eprintln!("{stdout}");
         assert!(out.status.success(), "failed to show addr via ip");
 
         assert!(stdout.contains(net), "route should exist");
@@ -148,7 +150,7 @@ mod tests {
 
         let out = run_command!("ip", "route", "show");
         let stdout = String::from_utf8(out.stdout).unwrap();
-        eprintln!("{}", stdout);
+        eprintln!("{stdout}");
         assert!(out.status.success(), "failed to show addr via ip");
 
         assert!(!stdout.contains(net), "route should not exist");
@@ -174,14 +176,14 @@ mod tests {
         assert!(out.status.success(), "failed to set up lo via ip");
 
         let addresses = sock.dump_addresses().expect("dump_addresses failed");
-        for nla in addresses[0].nlas.iter() {
-            if let address::Nla::Address(a) = nla {
-                assert_eq!(a, &vec![127, 0, 0, 1])
+        for nla in addresses[0].attributes.iter() {
+            if let address::AddressAttribute::Address(ip) = nla {
+                assert_eq!(ip, &IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)))
             }
         }
-        for nla in addresses[1].nlas.iter() {
-            if let address::Nla::Address(a) = nla {
-                assert_eq!(a, &vec![10, 0, 0, 2])
+        for nla in addresses[1].attributes.iter() {
+            if let address::AddressAttribute::Address(ip) = nla {
+                assert_eq!(ip, &IpAddr::V4(Ipv4Addr::new(10, 0, 0, 2)))
             }
         }
     }

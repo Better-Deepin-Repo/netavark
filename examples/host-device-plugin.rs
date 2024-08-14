@@ -1,9 +1,6 @@
 //! This is just an example plugin, do not use it in production!
 
-use std::{
-    collections::HashMap,
-    net::{Ipv4Addr, Ipv6Addr},
-};
+use std::{collections::HashMap, os::fd::AsFd};
 
 use netavark::{
     network::{
@@ -13,7 +10,7 @@ use netavark::{
     new_error,
     plugin::{Info, Plugin, PluginExec, API_VERSION},
 };
-use netlink_packet_route::{address::Nla, nlas::link};
+use netlink_packet_route::{address::AddressAttribute, link::LinkAttribute};
 
 fn main() {
     let info = Info::new("0.1.0-dev".to_owned(), API_VERSION.to_owned(), None);
@@ -47,8 +44,8 @@ impl Plugin for Exec {
         let link = host.netlink.get_link(netlink::LinkID::Name(name.clone()))?;
 
         let mut mac_address = String::from("");
-        for nla in link.nlas {
-            if let link::Nla::Address(ref addr) = nla {
+        for nla in link.attributes {
+            if let LinkAttribute::Address(ref addr) = nla {
                 mac_address = CoreUtils::encode_address_to_hex(addr);
             }
         }
@@ -57,20 +54,9 @@ impl Plugin for Exec {
         let mut subnets = Vec::new();
         for address in addresses {
             if address.header.index == link.header.index {
-                for nla in address.nlas {
-                    if let Nla::Address(a) = &nla {
-                        let ip = match a.len() {
-                            4 => Ipv4Addr::new(a[0], a[1], a[2], a[3]).into(),
-                            16 => Ipv6Addr::from([
-                                a[0], a[1], a[2], a[3], a[4], a[5], a[6], a[7], a[8], a[9], a[10],
-                                a[11], a[12], a[13], a[14], a[15],
-                            ])
-                            .into(),
-                            len => {
-                                return Err(new_error!("invalid netlink address, length: {}", len))
-                            }
-                        };
-                        let net = ipnet::IpNet::new(ip, address.header.prefix_len)?;
+                for nla in address.attributes {
+                    if let AddressAttribute::Address(ip) = &nla {
+                        let net = ipnet::IpNet::new(*ip, address.header.prefix_len)?;
                         subnets.push(types::NetAddress {
                             gateway: None,
                             ipnet: net,
@@ -80,13 +66,14 @@ impl Plugin for Exec {
             }
         }
 
-        host.netlink.set_link_ns(link.header.index, netns.fd)?;
+        host.netlink
+            .set_link_ns(link.header.index, netns.file.as_fd())?;
 
         // interfaces map, but we only ever expect one, for response
         let mut interfaces: HashMap<String, types::NetInterface> = HashMap::new();
 
         let interface = types::NetInterface {
-            mac_address: mac_address,
+            mac_address,
             subnets: Option::from(subnets),
         };
         interfaces.insert(name, interface);
@@ -113,7 +100,9 @@ impl Plugin for Exec {
 
         let link = netns.netlink.get_link(netlink::LinkID::Name(name))?;
 
-        netns.netlink.set_link_ns(link.header.index, host.fd)?;
+        netns
+            .netlink
+            .set_link_ns(link.header.index, host.file.as_fd())?;
 
         Ok(())
     }
