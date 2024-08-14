@@ -1,3 +1,9 @@
+netavark (1.12.1-1) experimental; urgency=medium
+
+  * New upstream relase
+
+ -- Reinhard Tartler <siretart@tauware.de>  Wed, 14 Aug 2024 17:59:32 -0400
+
 netavark (1.9.0-4) unstable; urgency=medium
 
   * Upload to unstable
