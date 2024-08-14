@@ -11,7 +11,7 @@ Index: netavark/Cargo.toml
 ===================================================================
 --- netavark.orig/Cargo.toml
 +++ netavark/Cargo.toml
-@@ -32,9 +32,9 @@ deps-serde = ["chrono/serde", "url/serde
+@@ -32,11 +32,11 @@ deps-serde = ["chrono/serde", "url/serde
  [dependencies]
  anyhow = "1.0.86"
  clap = { version = "~4.4.12", features = ["derive", "env"] }
@@ -21,8 +21,11 @@ Index: netavark/Cargo.toml
 -iptables = "0.5.2"
 +iptables = "0.5"
  libc = "0.2.154"
- log = "0.4.22"
+-log = "0.4.22"
++log = "0.4"
  serde = { version = "1.0.199", features = ["derive"], optional = true }
+ serde-value = "0.7.0"
+ serde_json = "1.0.121"
 @@ -60,7 +60,7 @@ prost = "0.12.6"
  futures-channel = "0.3.30"
  futures-core = "0.3.30"
