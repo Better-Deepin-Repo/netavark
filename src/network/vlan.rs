@@ -2,7 +2,9 @@ use log::{debug, error};
 use std::os::fd::BorrowedFd;
 use std::{collections::HashMap, net::IpAddr};
 
-use netlink_packet_route::nlas::link::{InfoData, InfoIpVlan, InfoKind, InfoMacVlan, Nla};
+use netlink_packet_route::link::{
+    InfoData, InfoIpVlan, InfoKind, InfoMacVlan, IpVlanMode, LinkAttribute, MacVlanMode,
+};
 use rand::distributions::{Alphanumeric, DistString};
 
 use crate::network::macvlan_dhcp::{get_dhcp_lease, release_dhcp_lease};
@@ -30,14 +32,14 @@ enum KindData {
         /// static mac address
         mac_address: Option<Vec<u8>>,
         /// macvlan mode
-        mode: u32,
+        mode: MacVlanMode,
 
         // IFLA_MACVLAN_BC_CUTOFF option if set
         bclim: Option<i32>,
     },
     IpVlan {
         /// ipvlan mode
-        mode: u16,
+        mode: IpVlanMode,
     },
 }
 
@@ -181,12 +183,20 @@ impl driver::NetworkDriver for Vlan<'_> {
         // a dhcp lease.  it will also perform the IP address assignment
         // to the macvlan interface.
         let subnets = if data.ipam.dhcp_enabled {
-            get_dhcp_lease(
+            let (subnets, dns_servers, domain_name) = get_dhcp_lease(
                 &data.host_interface_name,
                 &data.container_interface_name,
                 self.info.netns_path,
                 &container_vlan_mac,
-            )?
+            )?;
+            // do not overwrite dns servers set by dns podman flag
+            if !self.info.container_dns_servers.is_some() {
+                response.dns_server_ips = dns_servers;
+            }
+            if domain_name.is_some() {
+                response.dns_search_domains = domain_name;
+            }
+            subnets
         } else {
             data.ipam.net_addresses.clone()
         };
@@ -220,7 +230,7 @@ impl driver::NetworkDriver for Vlan<'_> {
                     &self.info.per_network_opts.interface_name
                 ))?;
 
-            let container_mac_address = get_mac_address(dev.nlas)?;
+            let container_mac_address = get_mac_address(dev.attributes)?;
             release_dhcp_lease(
                 &self
                     .info
@@ -307,7 +317,7 @@ fn setup(
                     let random = Alphanumeric.sample_string(&mut rand::thread_rng(), 10);
                     let tmp_name = "mv-".to_string() + &random;
                     let mut opts = opts.clone();
-                    opts.name = tmp_name.clone();
+                    opts.name.clone_from(&tmp_name);
                     result = host.create_link(opts);
                     if let Err(ref e) = result {
                         // if last element return directly
@@ -373,12 +383,12 @@ fn setup(
         netns.add_route(route)?
     }
 
-    get_mac_address(dev.nlas)
+    get_mac_address(dev.attributes)
 }
 
-fn get_mac_address(v: Vec<Nla>) -> NetavarkResult<String> {
+fn get_mac_address(v: Vec<LinkAttribute>) -> NetavarkResult<String> {
     for nla in v.into_iter() {
-        if let Nla::Address(ref addr) = nla {
+        if let LinkAttribute::Address(ref addr) = nla {
             return Ok(CoreUtils::encode_address_to_hex(addr));
         }
     }
@@ -393,11 +403,11 @@ fn get_default_route_interface(host: &mut netlink::Socket) -> NetavarkResult<Str
     for route in routes {
         let mut dest = false;
         let mut out_if = 0;
-        for nla in route.nlas {
-            if let netlink_packet_route::route::Nla::Destination(_) = nla {
+        for nla in route.attributes {
+            if let netlink_packet_route::route::RouteAttribute::Destination(_) = nla {
                 dest = true;
             }
-            if let netlink_packet_route::route::Nla::Oif(oif) = nla {
+            if let netlink_packet_route::route::RouteAttribute::Oif(oif) = nla {
                 out_if = oif;
             }
         }
@@ -406,8 +416,8 @@ fn get_default_route_interface(host: &mut netlink::Socket) -> NetavarkResult<Str
         // return the output interface for this route
         if !dest && out_if > 0 {
             let link = host.get_link(netlink::LinkID::ID(out_if))?;
-            let name = link.nlas.iter().find_map(|nla| {
-                if let Nla::IfName(name) = nla {
+            let name = link.attributes.iter().find_map(|nla| {
+                if let LinkAttribute::IfName(name) = nla {
                     Some(name)
                 } else {
                     None

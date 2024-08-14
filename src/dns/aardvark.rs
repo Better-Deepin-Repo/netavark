@@ -29,6 +29,7 @@ pub struct AardvarkEntry<'a> {
     pub container_ips_v6: Vec<Ipv6Addr>,
     pub container_names: Vec<String>,
     pub container_dns_servers: &'a Option<Vec<IpAddr>>,
+    pub is_internal: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -115,23 +116,80 @@ impl Aardvark {
         // After https://github.com/containers/aardvark-dns/pull/148 this command
         // will block till aardvark-dns's parent process returns back and let
         // aardvark inherit all the fds.
-        Command::new(aardvark_args[0])
+        let out = Command::new(aardvark_args[0])
             .args(&aardvark_args[1..])
-            .stdin(Stdio::inherit())
-            .stdout(Stdio::inherit())
-            .stderr(Stdio::inherit())
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
             // set RUST_LOG for aardvark
             .env("RUST_LOG", log::max_level().as_str())
             .output()?;
 
-        Ok(())
+        if out.status.success() {
+            return Ok(());
+        }
+        if out.stderr.is_empty() {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                "aardvark-dns exited unexpectedly without error message",
+            ));
+        }
+        // aardvark-dns failed capture stderr
+        let msg = String::from_utf8(out.stderr).map_err(|e| {
+            std::io::Error::new(
+                std::io::ErrorKind::Other,
+                format!("failed to parse aardvark-dns stderr message: {e}"),
+            )
+        })?;
+
+        Err(std::io::Error::new(
+            std::io::ErrorKind::Other,
+            format!("aardvark-dns failed to start: {}", msg.trim()),
+        ))
     }
 
-    pub fn notify(&self, start: bool) -> NetavarkResult<()> {
+    fn check_netns(&self, pid: pid_t) {
+        // This should never fail but ignore errors anyway
+        let cur_ns = match fs::read_link("/proc/self/ns/net") {
+            Ok(p) => p,
+            Err(_) => return,
+        };
+        // This might fail
+        let aardvark_ns = match fs::read_link(format!("/proc/{pid}/ns/net")) {
+            Ok(p) => p,
+            // In case of errors ignore them and do not warn. When the process is exiting then
+            // several different errors can happen. I have observed ENOENT, ESRCH and EACCES so
+            // to be safe just ignore all errors as this warning here is just best effort anyway.
+            // https://github.com/containers/podman/issues/22103
+            Err(_) => return,
+        };
+
+        if aardvark_ns != cur_ns {
+            // netns does not match, this means dns will not work.
+            // see https://github.com/containers/podman/issues/20396 for how that might happen
+            // We do not not really what the problem in the aardvark-dns config files so we
+            // cannot really self heal here and must ask the user to fix it.
+            // I am not sure if this should be a hard error??
+            log::error!(
+                "aardvark-dns runs in a different netns, dns will not work for this container. To resolve please stop all containers, kill the aardvark-dns process, remove the {} directory and then start the containers again",
+                self.config.display()
+            );
+        }
+    }
+
+    pub fn notify(&self, start: bool, is_update: bool) -> NetavarkResult<()> {
         match self.get_aardvark_pid() {
             Ok(pid) => {
                 match signal::kill(Pid::from_raw(pid), Signal::SIGHUP) {
-                    Ok(_) => return Ok(()),
+                    Ok(_) => {
+                        // We do not want to check the netns when doing an update
+                        // this is not working because podman does not enter the
+                        // rootless netns for the update as we only change the file
+                        // and send SIGHUP.
+                        if !is_update {
+                            self.check_netns(pid)
+                        }
+                        return Ok(());
+                    }
                     Err(err) => {
                         // ESRCH == process does not exists
                         // start new sever below in that case and not error
@@ -164,6 +222,7 @@ impl Aardvark {
             .read(true)
             .write(true)
             .create(true)
+            .truncate(true)
             .open(&lockfile_path)
         {
             Ok(file) => file,
@@ -182,7 +241,12 @@ impl Aardvark {
         }
 
         for entry in &entries {
-            let path = Path::new(&self.config).join(entry.network_name);
+            let mut path = Path::new(&self.config).join(entry.network_name);
+            if entry.is_internal {
+                let new_path = Path::new(&self.config).join(entry.network_name.to_owned() + "%int");
+                let _ = std::fs::rename(&path, &new_path);
+                path = new_path;
+            }
 
             let file = match OpenOptions::new().write(true).create_new(true).open(&path) {
                 Ok(mut f) => {
@@ -224,13 +288,6 @@ impl Aardvark {
             };
             match Aardvark::commit_entry(entry, file) {
                 Err(er) => {
-                    // drop lockfile when commit is completed
-                    if let Err(er) = lockfile.unlock() {
-                        return Err(std::io::Error::new(
-                            std::io::ErrorKind::Other,
-                            format!("Failed to unlock exclusive lock on {lockfile_path:?}: {er}"),
-                        ));
-                    }
                     return Err(std::io::Error::new(
                         std::io::ErrorKind::Other,
                         format!("Failed to commit entry {entry:?}: {er}"),
@@ -240,13 +297,6 @@ impl Aardvark {
             }
         }
 
-        // drop lockfile when commit is completed
-        if let Err(er) = lockfile.unlock() {
-            return Err(std::io::Error::new(
-                std::io::ErrorKind::Other,
-                format!("Failed to unlock exclusive lock on {lockfile_path:?}: {er}"),
-            ));
-        }
         Ok(())
     }
 
@@ -295,13 +345,17 @@ impl Aardvark {
     pub fn commit_netavark_entries(&self, entries: Vec<AardvarkEntry>) -> NetavarkResult<()> {
         if !entries.is_empty() {
             self.commit_entries(entries)?;
-            self.notify(true)?;
+            self.notify(true, false)?;
         }
         Ok(())
     }
 
     pub fn delete_entry(&self, container_id: &str, network_name: &str) -> Result<()> {
-        let path = Path::new(&self.config).join(network_name);
+        let mut path = Path::new(&self.config).join(network_name);
+        if !path.exists() {
+            path = Path::new(&self.config).join(network_name.to_owned() + "%int");
+        }
+
         let file_content = fs::read_to_string(&path)?;
         let lines: Vec<&str> = file_content.split_terminator('\n').collect();
 
@@ -331,7 +385,7 @@ impl Aardvark {
     pub fn modify_network_dns_servers(
         &self,
         network_name: &str,
-        network_dns_servers: &Vec<String>,
+        network_dns_servers: &[String],
     ) -> NetavarkResult<()> {
         let mut dns_servers_modified = false;
         let path = Path::new(&self.config).join(network_name);
@@ -390,7 +444,7 @@ impl Aardvark {
         // If dns servers were updated notify the aardvark-dns server
         // if refresh is needed.
         if dns_servers_modified {
-            self.notify(false)?;
+            self.notify(false, true)?;
         }
 
         Ok(())
@@ -400,6 +454,6 @@ impl Aardvark {
         for entry in &entries {
             self.delete_entry(entry.container_id, entry.network_name)?;
         }
-        self.notify(false)
+        self.notify(false, false)
     }
 }

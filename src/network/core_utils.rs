@@ -3,10 +3,7 @@ use crate::network::{constants, internal_types, types};
 use crate::wrap;
 use ipnet::IpNet;
 use log::debug;
-use netlink_packet_route::{
-    MACVLAN_MODE_BRIDGE, MACVLAN_MODE_PASSTHRU, MACVLAN_MODE_PRIVATE, MACVLAN_MODE_SOURCE,
-    MACVLAN_MODE_VEPA,
-};
+use netlink_packet_route::link::{IpVlanMode, MacVlanMode};
 use nix::sched;
 use sha2::{Digest, Sha512};
 use std::collections::HashMap;
@@ -22,10 +19,6 @@ use std::str::FromStr;
 use sysctl::{Sysctl, SysctlError};
 
 use super::netlink;
-
-pub const IPVLAN_MODE_L2: u16 = 0;
-pub const IPVLAN_MODE_L3: u16 = 1;
-pub const IPVLAN_MODE_L3S: u16 = 2;
 
 pub struct CoreUtils {
     pub networkns: String,
@@ -225,14 +218,14 @@ impl CoreUtils {
         Ok(result)
     }
 
-    pub fn get_macvlan_mode_from_string(mode: Option<&str>) -> NetavarkResult<u32> {
+    pub fn get_macvlan_mode_from_string(mode: Option<&str>) -> NetavarkResult<MacVlanMode> {
         match mode {
             // default to bridge when unset
-            None | Some("") | Some("bridge") => Ok(MACVLAN_MODE_BRIDGE),
-            Some("private") => Ok(MACVLAN_MODE_PRIVATE),
-            Some("vepa") => Ok(MACVLAN_MODE_VEPA),
-            Some("passthru") => Ok(MACVLAN_MODE_PASSTHRU),
-            Some("source") => Ok(MACVLAN_MODE_SOURCE),
+            None | Some("") | Some("bridge") => Ok(MacVlanMode::Bridge),
+            Some("private") => Ok(MacVlanMode::Private),
+            Some("vepa") => Ok(MacVlanMode::Vepa),
+            Some("passthru") => Ok(MacVlanMode::Passthrough),
+            Some("source") => Ok(MacVlanMode::Source),
             // default to bridge
             Some(name) => Err(NetavarkError::msg(format!(
                 "invalid macvlan mode \"{name}\""
@@ -240,12 +233,12 @@ impl CoreUtils {
         }
     }
 
-    pub fn get_ipvlan_mode_from_string(mode: Option<&str>) -> NetavarkResult<u16> {
+    pub fn get_ipvlan_mode_from_string(mode: Option<&str>) -> NetavarkResult<IpVlanMode> {
         match mode {
             // default to l2 when unset
-            None | Some("") | Some("l2") => Ok(IPVLAN_MODE_L2),
-            Some("l3") => Ok(IPVLAN_MODE_L3),
-            Some("l3s") => Ok(IPVLAN_MODE_L3S),
+            None | Some("") | Some("l2") => Ok(IpVlanMode::L2),
+            Some("l3") => Ok(IpVlanMode::L3),
+            Some("l3s") => Ok(IpVlanMode::L3S),
             Some(name) => Err(NetavarkError::msg(format!(
                 "invalid ipvlan mode \"{name}\""
             ))),
