@@ -21,7 +21,7 @@ Index: netavark/Cargo.toml
  url = "2.5.2"
 -zbus = { version = "3.15.2" }
 +zbus = { version = ">= 4.3" }
- nix = { version = "0.29.0", features = ["sched", "signal", "user"] }
+ nix = { version = ">= 0.27", features = ["sched", "signal", "user"] }
  rand = "0.8.5"
  sha2 = "0.10.8"
 Index: netavark/src/commands/firewalld_reload.rs
