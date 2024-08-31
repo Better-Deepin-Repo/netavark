@@ -1,8 +1,13 @@
 relax-tests.patch
 debian-paths.patch
-relax-deps.patch
 relax-zbus.patch
 Revert-update-netlink-packet-route-to-0.20.0.patch
 Revert-bump-netlink-packet-route-to-0.18.1.patch
 relax-tonic.patch
 relax-url.patch
+0008-Compile-against-clap-4.5.patch
+0009-compile-against-env_logger-0.10.patch
+0010-relax-dep-on-serde-json.patch
+0011-relax-dep-on-nix.patch
+0012-relax-dep-on-tokio-strem.patch
+0013-Relax-dep-on-nispor.patch

@@ -1,6 +1,7 @@
 From: Blair Noctis <n@sail.ng>
 Date: Fri, 12 Jul 2024 21:52:07 +0800
 Subject: fix(deps): update zbus to 4.3.1
+
 Forwarded: https://github.com/containers/netavark/pull/1025/
 
 Signed-off-by: Blair Noctis <n@sail.ng>
@@ -11,23 +12,23 @@ Signed-off-by: Blair Noctis <n@sail.ng>
  src/firewall/firewalld.rs        | 185 ++++++++++++++++-----------------------
  4 files changed, 79 insertions(+), 119 deletions(-)
 
-Index: netavark/Cargo.toml
-===================================================================
---- netavark.orig/Cargo.toml
-+++ netavark/Cargo.toml
+diff --git a/Cargo.toml b/Cargo.toml
+index 30952ba..c2ac980 100644
+--- a/Cargo.toml
++++ b/Cargo.toml
 @@ -42,7 +42,7 @@ serde-value = "0.7.0"
- serde_json = { version = ">= 1.0" }
+ serde_json = "1.0.121"
  sysctl = "0.5.5"
  url = "2.5.2"
 -zbus = { version = "3.15.2" }
 +zbus = { version = ">= 4.3" }
- nix = { version = ">= 0.27", features = ["sched", "signal", "user"] }
+ nix = { version = "0.29.0", features = ["sched", "signal", "user"] }
  rand = "0.8.5"
  sha2 = "0.10.8"
-Index: netavark/src/commands/firewalld_reload.rs
-===================================================================
---- netavark.orig/src/commands/firewalld_reload.rs
-+++ netavark/src/commands/firewalld_reload.rs
+diff --git a/src/commands/firewalld_reload.rs b/src/commands/firewalld_reload.rs
+index 0e1d884..5f3e00c 100644
+--- a/src/commands/firewalld_reload.rs
++++ b/src/commands/firewalld_reload.rs
 @@ -3,7 +3,7 @@ use std::{
      path::Path,
  };
@@ -46,7 +47,7 @@ Index: netavark/src/commands/firewalld_reload.rs
      interface = "org.fedoraproject.FirewallD1",
      default_service = "org.fedoraproject.FirewallD1",
      default_path = "/org/fedoraproject/FirewallD1"
-@@ -40,7 +40,7 @@ pub fn listen(config_dir: Option<OsStrin
+@@ -40,7 +40,7 @@ pub fn listen(config_dir: Option<OsString>) -> NetavarkResult<()> {
      reload_rules(config_dir);
  
      // This loops forever until the process is killed or there is some dbus error.
@@ -55,10 +56,10 @@ Index: netavark/src/commands/firewalld_reload.rs
          log::debug!("got firewalld {} signal", SIGNAL_NAME);
          reload_rules(config_dir);
      }
-Index: netavark/src/dhcp_proxy/lib.rs
-===================================================================
---- netavark.orig/src/dhcp_proxy/lib.rs
-+++ netavark/src/dhcp_proxy/lib.rs
+diff --git a/src/dhcp_proxy/lib.rs b/src/dhcp_proxy/lib.rs
+index 848b76b..cb35bc0 100644
+--- a/src/dhcp_proxy/lib.rs
++++ b/src/dhcp_proxy/lib.rs
 @@ -40,10 +40,7 @@ pub mod g_rpc {
      impl From<DhcpV4Lease> for Lease {
          fn from(l: DhcpV4Lease) -> Lease {
@@ -71,10 +72,10 @@ Index: netavark/src/dhcp_proxy/lib.rs
              let mtu = l.mtu.unwrap_or(0) as u32;
  
              Lease {
-Index: netavark/src/firewall/firewalld.rs
-===================================================================
---- netavark.orig/src/firewall/firewalld.rs
-+++ netavark/src/firewall/firewalld.rs
+diff --git a/src/firewall/firewalld.rs b/src/firewall/firewalld.rs
+index 635b262..4c4623d 100644
+--- a/src/firewall/firewalld.rs
++++ b/src/firewall/firewalld.rs
 @@ -1,8 +1,8 @@
  use crate::error::{NetavarkError, NetavarkResult};
 -use crate::firewall;
@@ -85,7 +86,7 @@ Index: netavark/src/firewall/firewalld.rs
  use core::convert::TryFrom;
  use log::{debug, info, warn};
  use std::collections::HashMap;
-@@ -128,28 +128,23 @@ impl firewall::FirewallDriver for Firewa
+@@ -128,28 +128,23 @@ impl firewall::FirewallDriver for FirewallD {
              "getPolicySettings",
              &(PORTPOLICYNAME),
          )?;
@@ -127,7 +128,7 @@ Index: netavark/src/firewall/firewalld.rs
              None => {
                  // No existing rules
                  // Make us a new array.
-@@ -199,15 +194,16 @@ impl firewall::FirewallDriver for Firewa
+@@ -199,15 +194,16 @@ impl firewall::FirewallDriver for FirewallD {
          let mut rich_rules_option: Option<Array> = None;
          if setup_portfw.dns_port != 53 && !setup_portfw.dns_server_ips.is_empty() {
              let mut rich_rules: Array;
@@ -151,7 +152,7 @@ Index: netavark/src/firewall/firewalld.rs
                  None => {
                      // No existing rules
                      // Make us a new array.
-@@ -277,28 +273,23 @@ impl firewall::FirewallDriver for Firewa
+@@ -277,28 +273,23 @@ impl firewall::FirewallDriver for FirewallD {
              "getPolicySettings",
              &(PORTPOLICYNAME),
          )?;
@@ -192,7 +193,7 @@ Index: netavark/src/firewall/firewalld.rs
                  None => {
                      // No existing rules - skip
                      None
-@@ -333,19 +324,22 @@ impl firewall::FirewallDriver for Firewa
+@@ -333,19 +324,22 @@ impl firewall::FirewallDriver for FirewallD {
              for port_tuple in old_port_forwarding_rules.iter() {
                  match port_tuple {
                      Value::Structure(s) => {
@@ -218,7 +219,7 @@ Index: netavark/src/firewall/firewalld.rs
                          }
                      }
                      _ => {
-@@ -367,15 +361,14 @@ impl firewall::FirewallDriver for Firewa
+@@ -367,15 +361,14 @@ impl firewall::FirewallDriver for FirewallD {
              && teardown_pf.config.dns_port != 53
              && !teardown_pf.config.dns_server_ips.is_empty()
          {
@@ -242,7 +243,7 @@ Index: netavark/src/firewall/firewalld.rs
              }
          }
          if let Some(old_rich_rules) = old_rich_rules_option {
-@@ -397,17 +390,13 @@ impl firewall::FirewallDriver for Firewa
+@@ -397,17 +390,13 @@ impl firewall::FirewallDriver for FirewallD {
              };
              let mut rich_rules = Array::new(sig);
              for rule in old_rich_rules.iter() {
@@ -267,7 +268,7 @@ Index: netavark/src/firewall/firewalld.rs
                  }
              }
              rich_rules_option = Some(rich_rules);
-@@ -464,15 +453,10 @@ fn create_zone_if_not_exist(conn: &Conne
+@@ -464,15 +453,10 @@ fn create_zone_if_not_exist(conn: &Connection, zone_name: &str) -> NetavarkResul
          "getZones",
          &(),
      )?;
@@ -287,7 +288,7 @@ Index: netavark/src/firewall/firewalld.rs
      for &zone in zones.iter() {
          if zone == zone_name {
              debug!("Zone exists and is running");
-@@ -488,15 +472,10 @@ fn create_zone_if_not_exist(conn: &Conne
+@@ -488,15 +472,10 @@ fn create_zone_if_not_exist(conn: &Connection, zone_name: &str) -> NetavarkResul
          "getZoneNames",
          &(),
      )?;
