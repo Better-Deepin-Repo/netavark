@@ -16,7 +16,7 @@ Index: netavark/Cargo.toml
 --- netavark.orig/Cargo.toml
 +++ netavark/Cargo.toml
 @@ -42,7 +42,7 @@ serde-value = "0.7.0"
- serde_json = "1.0.121"
+ serde_json = { version = ">= 1.0" }
  sysctl = "0.5.5"
  url = "2.5.2"
 -zbus = { version = "3.15.2" }
