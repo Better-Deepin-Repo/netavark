@@ -1,13 +1,13 @@
 From: Reinhard Tartler <siretart@tauware.de>
 Date: Fri, 30 Aug 2024 21:20:53 -0400
-Subject: relax dep on url
+Subject: relax url dependency
 
 ---
  Cargo.toml | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/Cargo.toml b/Cargo.toml
-index 68c0d47..286a41c 100644
+index 41523bf..a91cdfc 100644
 --- a/Cargo.toml
 +++ b/Cargo.toml
 @@ -41,7 +41,7 @@ serde = { version = "1.0.199", features = ["derive"], optional = true }

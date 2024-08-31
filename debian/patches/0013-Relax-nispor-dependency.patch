@@ -1,15 +1,15 @@
 From: Reinhard Tartler <siretart@tauware.de>
 Date: Fri, 30 Aug 2024 21:42:36 -0400
-Subject: Relax dep on nispor
+Subject: Relax nispor dependency
 
 ---
  Cargo.toml | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
 
-Index: netavark/Cargo.toml
-===================================================================
---- netavark.orig/Cargo.toml
-+++ netavark/Cargo.toml
+diff --git a/Cargo.toml b/Cargo.toml
+index 22b1299..f014e69 100644
+--- a/Cargo.toml
++++ b/Cargo.toml
 @@ -60,7 +60,7 @@ prost = "0.12.6"
  futures-channel = "0.3.30"
  futures-core = "0.3.30"

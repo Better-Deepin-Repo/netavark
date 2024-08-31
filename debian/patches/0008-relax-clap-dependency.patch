@@ -1,13 +1,13 @@
 From: Reinhard Tartler <siretart@tauware.de>
 Date: Fri, 30 Aug 2024 21:40:28 -0400
-Subject: Compile against clap 4.5
+Subject: relax clap dependency
 
 ---
  Cargo.toml | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/Cargo.toml b/Cargo.toml
-index 286a41c..6355d85 100644
+index a91cdfc..9b6601b 100644
 --- a/Cargo.toml
 +++ b/Cargo.toml
 @@ -31,7 +31,7 @@ deps-serde = ["chrono/serde", "url/serde"]

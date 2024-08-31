@@ -1,13 +1,13 @@
 From: Reinhard Tartler <siretart@tauware.de>
 Date: Fri, 30 Aug 2024 21:41:20 -0400
-Subject: relax dep on serde-json
+Subject: relax serde-json dependency
 
 ---
  Cargo.toml | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/Cargo.toml b/Cargo.toml
-index 1adc9a1..7757eab 100644
+index 6d4601e..aca0d3c 100644
 --- a/Cargo.toml
 +++ b/Cargo.toml
 @@ -39,7 +39,7 @@ libc = "0.2.154"

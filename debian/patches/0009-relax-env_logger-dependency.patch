@@ -1,13 +1,13 @@
 From: Reinhard Tartler <siretart@tauware.de>
 Date: Fri, 30 Aug 2024 21:40:49 -0400
-Subject: compile against env_logger 0.10
+Subject: relax env_logger dependency
 
 ---
  Cargo.toml | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/Cargo.toml b/Cargo.toml
-index 6355d85..1adc9a1 100644
+index 9b6601b..6d4601e 100644
 --- a/Cargo.toml
 +++ b/Cargo.toml
 @@ -32,7 +32,7 @@ deps-serde = ["chrono/serde", "url/serde"]
