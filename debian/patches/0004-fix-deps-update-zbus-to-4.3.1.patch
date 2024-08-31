@@ -1,6 +1,7 @@
 From: Blair Noctis <n@sail.ng>
 Date: Fri, 12 Jul 2024 21:52:07 +0800
 Subject: fix(deps): update zbus to 4.3.1
+
 Forwarded: https://github.com/containers/netavark/pull/1025/
 
 Signed-off-by: Blair Noctis <n@sail.ng>
