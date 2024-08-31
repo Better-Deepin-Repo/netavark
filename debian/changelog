@@ -1,3 +1,12 @@
+netavark (1.9.0-5) unstable; urgency=medium
+
+  * debian/tests/control: Add missing dependencies
+  * Make autopkgtest pass
+  * Relax dependency on rust-clap, Closes: #1080118
+  * normalize pathches with gbp-pq export
+
+ -- Reinhard Tartler <siretart@tauware.de>  Sat, 31 Aug 2024 18:29:28 -0400
+
 netavark (1.9.0-4) unstable; urgency=medium
 
   * Upload to unstable
