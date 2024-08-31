@@ -1,7 +1,7 @@
 relax-tests.patch
 debian-paths.patch
 relax-deps.patch
-0004-fix-deps-update-zbus-to-4.3.1.patch
+relax-zbus.patch
 0005-Revert-update-netlink-packet-route-to-0.20.0.patch
 0006-Revert-bump-netlink-packet-route-to-0.18.1.patch
 relax-tonic.patch
