@@ -1,3 +1,9 @@
+netavark (1.12.1-2) unstable; urgency=medium
+
+  * Upload to unstable
+
+ -- Reinhard Tartler <siretart@tauware.de>  Mon, 02 Sep 2024 08:51:10 -0400
+
 netavark (1.12.1-1) experimental; urgency=medium
 
   * New upstream release: 1.12.1
