@@ -11,4 +11,4 @@ Depends: aardvark-dns (>> 1.12),
          netcat-openbsd,
          util-linux,
          @
-Restrictions: allow-stderr, needs-root, isolation-container
+Restrictions: allow-stderr, needs-root, isolation-machine
