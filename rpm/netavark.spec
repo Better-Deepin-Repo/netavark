@@ -2,14 +2,6 @@
 # Latest upstream rtnetlink frequently required
 # sha2, zbus, zvariant are currently out of date
 
-# RHEL doesn't include the package rust-packaging which provides %%__cargo macro, but EPEL
-# does. So we set it separately here and skip rust-packaging dependency for RHEL.
-# Buildability without EPEL is essential for packit builds.
-# ELN doesn't need this.
-%if %{defined rhel} && 0%{?rhel} < 10
-%define __cargo %{_bindir}/env CARGO_HOME=.cargo RUSTC_BOOTSTRAP=1 RUSTFLAGS='-Copt-level=3 -Cdebuginfo=2 -Ccodegen-units=1 -Clink-arg=-Wl,-z,relro -Clink-arg=-Wl,-z,now --cap-lints=warn' %{_bindir}/cargo
-%endif
-
 %global with_debug 1
 
 %if 0%{?with_debug}
@@ -19,10 +11,24 @@
 %global debug_package %{nil}
 %endif
 
+# Minimum X.Y dep for aardvark-dns
+%define major_minor %((v=%{version}; echo ${v%.*}))
+
+# Set default firewall to nftables on CentOS Stream 10+, RHEL 10+, Fedora 41+
+# and default to iptables on all other environments
+# The `rhel` macro is defined on CentOS Stream, RHEL as well as Fedora ELN.
+%if (%{defined rhel} && 0%{?rhel} >= 10) || (%{defined fedora} && 0%{?fedora} >= 41)
+%define default_fw nftables
+%else
+%define default_fw iptables
+%endif
+
 Name: netavark
 # Set a different Epoch for copr builds
 %if %{defined copr_username}
 Epoch: 102
+%else
+Epoch: 2
 %endif
 Version: 0
 Release: %autorelease
@@ -41,9 +47,13 @@ Source1: %{url}/releases/download/v%{version}/%{name}-v%{version}-vendor.tar.gz
 BuildRequires: cargo
 BuildRequires: %{_bindir}/go-md2man
 # aardvark-dns and %%{name} are usually released in sync
-Recommends: aardvark-dns >= %{version}-1
-Requires: (aardvark-dns >= %{version}-1 if fedora-release-identity-server)
+Requires: aardvark-dns >=  %{epoch}:%{major_minor}
 Provides: container-network-stack = 2
+%if "%{default_fw}" == "nftables"
+Requires: nftables
+%else
+Requires: iptables
+%endif
 BuildRequires: make
 BuildRequires: protobuf-c
 BuildRequires: protobuf-compiler
@@ -85,19 +95,20 @@ Its features include:
 # dependencies directly from the network.
 %if !%{defined copr_username}
 tar fx %{SOURCE1}
-mkdir -p .cargo
-
-cat >.cargo/config << EOF
-[source.crates-io]
-replace-with = "vendored-sources"
-
-[source.vendored-sources]
-directory = "vendor"
-EOF
+%if 0%{?fedora} || 0%{?rhel} >= 10
+%cargo_prep -v vendor
+%else
+%cargo_prep -V 1
+%endif
 %endif
 
 %build
-%{__make} CARGO="%{__cargo}" build
+NETAVARK_DEFAULT_FW=%{default_fw} %{__make} CARGO="%{__cargo}" build
+%if (0%{?fedora} || 0%{?rhel} >= 10) && !%{defined copr_username}
+%cargo_license_summary
+%{cargo_license} > LICENSE.dependencies
+%cargo_vendor_manifest
+%endif
 
 cd docs
 %{__make}
@@ -115,6 +126,10 @@ cd docs
 
 %files
 %license LICENSE
+%if (0%{?fedora} || 0%{?rhel} >= 10) && !%{defined copr_username}
+%license LICENSE.dependencies
+%license cargo-vendor.txt
+%endif
 %dir %{_libexecdir}/podman
 %{_libexecdir}/podman/%{name}*
 %{_mandir}/man1/%{name}.1*

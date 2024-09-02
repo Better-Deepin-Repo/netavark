@@ -1,9 +1,19 @@
+netavark (1.12.1-1) experimental; urgency=medium
+
+  * New upstream release: 1.12.1
+  * Refresh patches
+  * Compile against clap 4.5, Closes: #1080118
+  * Tighten dependencies on aardvark-dns 1.12
+  * Require qemu for autopkgtest tests
+
+ -- Reinhard Tartler <siretart@tauware.de>  Sat, 31 Aug 2024 08:31:56 -0400
+
 netavark (1.9.0-5) unstable; urgency=medium
 
   * debian/tests/control: Add missing dependencies
   * Make autopkgtest pass
   * Relax dependency on rust-clap, Closes: #1080118
-  * normalize pathches with gbp-pq export
+  * Normalize distro patches with gbp-pq export
 
  -- Reinhard Tartler <siretart@tauware.de>  Sat, 31 Aug 2024 18:29:28 -0400
 

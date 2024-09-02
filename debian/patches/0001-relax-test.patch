@@ -1,8 +1,9 @@
 From: Reinhard Tartler <siretart@tauware.de>
 Date: Fri, 12 Jul 2024 08:36:13 -0400
-Subject: relax-tests
+Subject: relax test
 
-===================================================================
+Upstream test assert that the git commit id is backed into the output,
+which is not the case for the Debian build.
 ---
  test/001-basic.bats | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

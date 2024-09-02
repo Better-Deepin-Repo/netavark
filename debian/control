@@ -21,6 +21,7 @@ Build-Depends: cargo:native <!nocheck>,
                librust-macaddr-dev,
                librust-mozim-dev (>= 0.2.3),
                librust-netlink-packet-route-0.17-dev (>= 0.17.1),
+               librust-nftables-dev,
                librust-nispor-dev,
                librust-nix-dev (>= 0.27),
                librust-prost-dev (>= 0.12),
@@ -55,7 +56,7 @@ Architecture: any
 Depends: ${misc:Depends}, ${shlibs:Depends}
 Provides: container-network-stack (= 2)
 Recommends: aardvark-dns
-Breaks: aardvark-dns (<< 1.4)
+Breaks: aardvark-dns (<< 1.12)
 Enhances: podman
 Description: Rust based network stack for containers
  Netavark is designed to work with but is also applicable

@@ -1,0 +1,21 @@
+From: Reinhard Tartler <siretart@tauware.de>
+Date: Fri, 30 Aug 2024 21:40:28 -0400
+Subject: relax clap dependency
+
+---
+ Cargo.toml | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/Cargo.toml b/Cargo.toml
+index a91cdfc..9b6601b 100644
+--- a/Cargo.toml
++++ b/Cargo.toml
+@@ -31,7 +31,7 @@ deps-serde = ["chrono/serde", "url/serde"]
+ 
+ [dependencies]
+ anyhow = "1.0.86"
+-clap = { version = "~4.4.12", features = ["derive", "env"] }
++clap = { version = ">= 4.4", features = ["derive", "env"] }
+ env_logger = "0.11.5"
+ ipnet = { version = "2.9.0", features = ["serde"] }
+ iptables = "0.5.2"
