@@ -9,7 +9,7 @@ Depends: aardvark-dns (>> 1.12),
          nftables,
          iputils-ping,
          jq,
-         netcat-openbsd,
+         ncat,
          util-linux,
          @
 Restrictions: allow-stderr, needs-root, isolation-machine
