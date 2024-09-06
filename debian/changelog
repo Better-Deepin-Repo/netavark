@@ -1,3 +1,10 @@
+netavark (1.12.1-3) unstable; urgency=medium
+
+  * provide nftables to autopkgtests
+  * Tests require 'ncat' as "netcat" implementation
+
+ -- Reinhard Tartler <siretart@tauware.de>  Thu, 05 Sep 2024 21:28:47 -0400
+
 netavark (1.12.1-2) unstable; urgency=medium
 
   * Upload to unstable
