@@ -37,7 +37,7 @@ impl Teardown {
         plugin_directories: Option<Vec<OsString>>,
         rootless: bool,
     ) -> NetavarkResult<()> {
-        debug!("{:?}", "Tearing down..");
+        debug!("Tearing down..");
         let network_options = network::types::NetworkOptions::load(input_file)?;
 
         let mut error_list = NetavarkErrorList::new();
@@ -67,7 +67,7 @@ impl Teardown {
             let path = Path::new(&config_dir).join("aardvark-dns");
 
             let aardvark_interface = Aardvark::new(path, rootless, aardvark_bin, dns_port);
-            if let Err(err) = aardvark_interface.delete_from_netavark_entries(aardvark_entries) {
+            if let Err(err) = aardvark_interface.delete_from_netavark_entries(&aardvark_entries) {
                 error_list.push(NetavarkError::wrap("remove aardvark entries", err));
             }
         }
@@ -129,7 +129,7 @@ impl Teardown {
             return Err(NetavarkError::List(error_list));
         }
 
-        debug!("{:?}", "Teardown complete");
+        debug!("Teardown complete");
         Ok(())
     }
 }
