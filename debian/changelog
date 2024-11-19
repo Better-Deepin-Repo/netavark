@@ -1,3 +1,9 @@
+netavark (1.12.1-5) unstable; urgency=medium
+
+  * autopkgtest: ignore the new bridge tests
+
+ -- Reinhard Tartler <siretart@tauware.de>  Tue, 19 Nov 2024 08:05:41 -0500
+
 netavark (1.12.1-4) unstable; urgency=medium
 
   * Install systemd service files, Closes: #1087796
