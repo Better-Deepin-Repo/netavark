@@ -11,7 +11,7 @@ execute_before_dh_auto_configure:
 	$(call _mkchecksum,debian/cargo-checksum.json,Cargo.toml)
 
 execute_after_dh_install:
-	mkdir -vp debian/netavark/usr/lib
+	mkdir -vp debian/netavark/usr/lib debian/netavark/lib/systemd/system
 	mv -v debian/netavark/usr/bin debian/netavark/usr/lib/podman
 	install -D -m 664  contrib/systemd/system/netavark-dhcp-proxy.socket \
 		debian/netavark/lib/systemd/system
