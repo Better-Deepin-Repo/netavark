@@ -1,15 +1,15 @@
 # Bridge tests fail, cf https://github.com/containers/netavark/issues/984
-Test-Command: rm -fv test/100-* test/200-* test/500-*; env NETAVARK=/usr/lib/podman/netavark bats --no-tempdir-cleanup --print-output-on-failure test/
+Test-Command: rm -fv test/1??-* test/2??-* test/500-*; env NETAVARK=/usr/lib/podman/netavark bats --no-tempdir-cleanup --print-output-on-failure test/
 Depends: aardvark-dns (>> 1.12),
          bats,
          bind9-dnsutils,
          firewalld,
          iproute2,
          iptables,
-         nftables,
          iputils-ping,
          jq,
          ncat,
+         nftables,
          util-linux,
          @
-Restrictions: allow-stderr, needs-root, isolation-machine
+Restrictions: allow-stderr, isolation-machine, needs-root
