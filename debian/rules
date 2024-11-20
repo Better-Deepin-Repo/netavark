@@ -14,7 +14,7 @@ execute_after_dh_install:
 	mkdir -vp debian/netavark/usr/lib debian/netavark/usr/lib/systemd/system
 	mv -v debian/netavark/usr/bin debian/netavark/usr/lib/podman
 	install -D -m 664  contrib/systemd/system/netavark-dhcp-proxy.socket \
-		debian/netavark/lib/systemd/system
+		debian/netavark/usr/lib/systemd/system
 	sed -e 's;@@NETAVARK@@;/usr/lib/podman/netavark;g' \
 		< contrib/systemd/system/netavark-dhcp-proxy.service.in \
 		> debian/netavark/usr/lib/systemd/system/netavark-dhcp-proxy.service
