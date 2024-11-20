@@ -1,3 +1,10 @@
+netavark (1.12.1-7) unstable; urgency=medium
+
+  [ Tianyu Chen ]
+  * Also move netavark-dhcp-proxy.socket to /usr/lib/systemd, Closes: #1087910
+
+ -- Reinhard Tartler <siretart@tauware.de>  Wed, 20 Nov 2024 08:04:32 -0500
+
 netavark (1.12.1-6) unstable; urgency=medium
 
   * Move systemd units to /usr/lib/systemd, Closes: #1087846
