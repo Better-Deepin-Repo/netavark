@@ -6,7 +6,6 @@ Revert-bump-netlink-packet-route-to-0.18.1.patch
 0006-relax-tonic-dependency.patch
 0007-relax-url-dependency.patch
 0008-relax-clap-dependency.patch
-0009-relax-env_logger-dependency.patch
 0010-relax-serde-json-dependency.patch
 0011-relax-nix-dependency.patch
 0012-relax-tokio-stream-dependency.patch
