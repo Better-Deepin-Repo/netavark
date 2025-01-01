@@ -1,5 +1,8 @@
 #!/usr/bin/make -f
 
+# cf. https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1091318
+export NETAVARK_DEFAULT_FW := nftables
+
 # generate cargo-checksum file
 _mkchecksum = printf '{"package":"%s","files":{}}\n' \
  $$(sha256sum $(or $2,$(dir $1)Cargo.toml) | grep -Po '^\S+') > $1;
