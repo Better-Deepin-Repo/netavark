@@ -1,3 +1,14 @@
+netavark (1.12.1-8) unstable; urgency=medium
+
+  [ Reinhard Tartler ]
+  * Restrict autopkgtests to amd64
+  * default to nftables, closes: #1091318
+
+  [ NoisyCoil ]
+  * Bump env_logger dependency to v0.11, closes: #1091227
+
+ -- Reinhard Tartler <siretart@tauware.de>  Wed, 01 Jan 2025 07:39:04 -0500
+
 netavark (1.12.1-7) unstable; urgency=medium
 
   [ Tianyu Chen ]
