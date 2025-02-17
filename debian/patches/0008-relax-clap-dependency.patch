@@ -6,11 +6,11 @@ Subject: relax clap dependency
  Cargo.toml | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
 
-Index: netavark/Cargo.toml
-===================================================================
---- netavark.orig/Cargo.toml
-+++ netavark/Cargo.toml
-@@ -32,7 +32,7 @@ deps-serde = ["chrono/serde", "url/serde
+diff --git a/Cargo.toml b/Cargo.toml
+index 816b5cd..d19c8af 100644
+--- a/Cargo.toml
++++ b/Cargo.toml
+@@ -32,7 +32,7 @@ deps-serde = ["chrono/serde", "url/serde"]
  
  [dependencies]
  anyhow = "1.0.93"

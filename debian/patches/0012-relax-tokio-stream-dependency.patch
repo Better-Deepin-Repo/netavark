@@ -6,10 +6,10 @@ Subject: relax tokio-stream dependency
  Cargo.toml | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
 
-Index: netavark/Cargo.toml
-===================================================================
---- netavark.orig/Cargo.toml
-+++ netavark/Cargo.toml
+diff --git a/Cargo.toml b/Cargo.toml
+index af05579..2c5ad37 100644
+--- a/Cargo.toml
++++ b/Cargo.toml
 @@ -54,7 +54,7 @@ nftables = "0.5.0"
  fs2 = "0.4.3"
  netlink-sys = "0.8.7"
