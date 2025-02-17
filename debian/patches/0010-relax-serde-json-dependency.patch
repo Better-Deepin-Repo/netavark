@@ -6,16 +6,16 @@ Subject: relax serde-json dependency
  Cargo.toml | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
 
-diff --git a/Cargo.toml b/Cargo.toml
-index 6d4601e..aca0d3c 100644
---- a/Cargo.toml
-+++ b/Cargo.toml
-@@ -39,7 +39,7 @@ libc = "0.2.154"
- log = "0.4.22"
- serde = { version = "1.0.199", features = ["derive"], optional = true }
+Index: netavark/Cargo.toml
+===================================================================
+--- netavark.orig/Cargo.toml
++++ netavark/Cargo.toml
+@@ -40,7 +40,7 @@ libc = "0.2.157"
+ log = "0.4.24"
+ serde = { version = "1.0.213", features = ["derive"], optional = true }
  serde-value = "0.7.0"
--serde_json = "1.0.121"
+-serde_json = "1.0.136"
 +serde_json = { version = ">= 1.0" }
- sysctl = "0.5.5"
- url = "2.5"
- zbus = { version = ">= 4.3" }
+ sysctl = "0.6.0"
+ url = "2.5.3"
+ zbus = { version = "4.3.1" }
