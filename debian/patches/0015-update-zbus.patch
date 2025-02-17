@@ -1,0 +1,100 @@
+From: NoisyCoil <noisycoil@tutanota.com>
+Date: Tue, 21 Jan 2025 01:23:45 +0100
+Subject: [PATCH] Bump zbus dependency to v5
+
+---
+ Cargo.toml                       |  2 +-
+ src/commands/firewalld_reload.rs |  2 +-
+ src/error/mod.rs                 |  8 ++++++++
+ src/firewall/firewalld.rs        | 12 ++++++------
+ 4 files changed, 16 insertions(+), 8 deletions(-)
+
+diff --git a/Cargo.toml b/Cargo.toml
+index 92f0695..304f4eb 100644
+--- a/Cargo.toml
++++ b/Cargo.toml
+@@ -43,7 +43,7 @@ serde-value = "0.7.0"
+ serde_json = { version = ">= 1.0" }
+ sysctl = "0.5.5"
+ url = "2.5.2"
+-zbus = { version = "4.3.1" }
++zbus = { version = "5.3.0" }
+ nix = { version = "0.29.0", features = ["sched", "signal", "user"] }
+ rand = "0.8.5"
+ sha2 = "0.10.8"
+diff --git a/src/commands/firewalld_reload.rs b/src/commands/firewalld_reload.rs
+index f17b4d5..4c2e476 100644
+--- a/src/commands/firewalld_reload.rs
++++ b/src/commands/firewalld_reload.rs
+@@ -3,7 +3,7 @@ use std::{
+     path::Path,
+ };
+ 
+-use zbus::{blocking::Connection, proxy, CacheProperties};
++use zbus::{blocking::Connection, proxy, proxy::CacheProperties};
+ 
+ use crate::{
+     error::{ErrorWrap, NetavarkResult},
+diff --git a/src/error/mod.rs b/src/error/mod.rs
+index bb6bbb6..0f0772d 100644
+--- a/src/error/mod.rs
++++ b/src/error/mod.rs
+@@ -192,6 +192,14 @@ impl From<zbus::zvariant::Error> for NetavarkError {
+     }
+ }
+ 
++// map the new zvariant::signature::Error to a
++// NetavarkError::DbusVariant, like zvariant::Error
++impl From<zbus::zvariant::signature::Error> for NetavarkError {
++    fn from(err: zbus::zvariant::signature::Error) -> NetavarkError {
++        NetavarkError::DbusVariant(err.into())
++    }
++}
++
+ impl From<sysctl::SysctlError> for NetavarkError {
+     fn from(err: sysctl::SysctlError) -> NetavarkError {
+         NetavarkError::Sysctl(err)
+diff --git a/src/firewall/firewalld.rs b/src/firewall/firewalld.rs
+index bfcbb43..54be64b 100644
+--- a/src/firewall/firewalld.rs
++++ b/src/firewall/firewalld.rs
+@@ -191,9 +191,9 @@ impl firewall::FirewallDriver for FirewallD {
+                 ))
+             }
+         };
+-        let mut port_forwarding_rules: Array = Array::new(sig_ssss);
+-        let mut rich_rules: Array = Array::new(sig_s.clone());
+-        let mut localhost_rich_rules: Array = Array::new(sig_s);
++        let mut port_forwarding_rules: Array = Array::new(&sig_ssss);
++        let mut rich_rules: Array = Array::new(&sig_s.clone());
++        let mut localhost_rich_rules: Array = Array::new(&sig_s);
+ 
+         // Create any necessary port forwarding rule(s) and add them to the
+         // policy config we grabbed above.
+@@ -408,7 +408,7 @@ impl firewall::FirewallDriver for FirewallD {
+                     ))
+                 }
+             };
+-            let mut port_forwarding_rules = Array::new(sig);
++            let mut port_forwarding_rules = Array::new(&sig);
+ 
+             let ipv4 = teardown_pf.config.container_ip_v4.map(|i| i.to_string());
+             let ipv6 = teardown_pf.config.container_ip_v6.map(|i| i.to_string());
+@@ -481,7 +481,7 @@ impl firewall::FirewallDriver for FirewallD {
+                     ))
+                 }
+             };
+-            let mut new_rich_rules = Array::new(sig);
++            let mut new_rich_rules = Array::new(&sig);
+ 
+             let ipv4 = teardown_pf.config.container_ip_v4.map(|i| i.to_string());
+             let ipv6 = teardown_pf.config.container_ip_v6.map(|i| i.to_string());
+@@ -564,7 +564,7 @@ impl firewall::FirewallDriver for FirewallD {
+                     ))
+                 }
+             };
+-            let mut new_rich_rules = Array::new(sig);
++            let mut new_rich_rules = Array::new(&sig);
+ 
+             let ipv4 = teardown_pf.config.container_ip_v4.map(|i| i.to_string());
+ 

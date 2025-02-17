@@ -41,7 +41,7 @@ Build-Depends: cargo:native <!nocheck>,
                librust-tonic-build-dev,
                librust-tonic-dev,
                librust-url-dev,
-               librust-zbus-4-dev (>= 4.3.1),
+               librust-zbus-dev,
                librust-zvariant-dev,
                libstd-rust-dev,
                rustc:native <!nocheck>
