@@ -1,6 +1,6 @@
 From: Reinhard Tartler <siretart@tauware.de>
-Date: Fri, 30 Aug 2024 21:40:28 -0400
-Subject: relax clap dependency
+Date: Mon, 17 Feb 2025 13:53:21 -0500
+Subject: Relax env_logger dependency
 
 ---
  Cargo.toml | 2 +-
@@ -10,12 +10,12 @@ Index: netavark/Cargo.toml
 ===================================================================
 --- netavark.orig/Cargo.toml
 +++ netavark/Cargo.toml
-@@ -32,7 +32,7 @@ deps-serde = ["chrono/serde", "url/serde
- 
+@@ -33,7 +33,7 @@ deps-serde = ["chrono/serde", "url/serde
  [dependencies]
  anyhow = "1.0.93"
--clap = { version = "~4.5.23", features = ["derive", "env"] }
-+clap = { version = ">= 4.5", features = ["derive", "env"] }
- env_logger = { version = ">= 0.11" }
+ clap = { version = "~4.5.23", features = ["derive", "env"] }
+-env_logger = "0.11.6"
++env_logger = { version = ">= 0.11" }
  ipnet = { version = "2.11.0", features = ["serde"] }
  iptables = "0.5.2"
+ libc = "0.2.157"
