@@ -3,9 +3,11 @@ use std::{collections::HashMap, net::IpAddr, os::fd::BorrowedFd, sync::Once};
 use ipnet::IpNet;
 use log::{debug, error};
 use netlink_packet_route::link::{
-    InfoData, InfoKind, InfoVeth, LinkAttribute, LinkInfo, LinkMessage,
+    BridgeVlanInfoFlags, InfoBridge, InfoData, InfoKind, InfoVeth, LinkAttribute, LinkInfo,
+    LinkMessage,
 };
 
+use crate::network::dhcp::{dhcp_teardown, get_dhcp_lease};
 use crate::{
     dns::aardvark::AardvarkEntry,
     error::{ErrorWrap, NetavarkError, NetavarkErrorList, NetavarkResult},
@@ -20,8 +22,8 @@ use crate::{
 use super::{
     constants::{
         ISOLATE_OPTION_FALSE, ISOLATE_OPTION_STRICT, ISOLATE_OPTION_TRUE,
-        NO_CONTAINER_INTERFACE_ERROR, OPTION_ISOLATE, OPTION_METRIC, OPTION_MTU,
-        OPTION_NO_DEFAULT_ROUTE, OPTION_VRF,
+        NO_CONTAINER_INTERFACE_ERROR, OPTION_HOST_INTERFACE_NAME, OPTION_ISOLATE, OPTION_METRIC,
+        OPTION_MODE, OPTION_MTU, OPTION_NO_DEFAULT_ROUTE, OPTION_VLAN, OPTION_VRF,
     },
     core_utils::{self, get_ipam_addresses, join_netns, parse_option, CoreUtils},
     driver::{self, DriverInfo},
@@ -35,9 +37,19 @@ use super::{
 
 const NO_BRIDGE_NAME_ERROR: &str = "no bridge interface name given";
 
+#[derive(Clone, Copy, PartialEq)]
+enum BridgeMode {
+    /// The bridge is managed by netavark.
+    Managed,
+    /// The bridge was created externally and we only add/remove veths.
+    Unmanaged,
+}
+
 struct InternalData {
     /// interface name of the veth pair inside the container netns
     container_interface_name: String,
+    /// interace name of the veth pair in the host netns
+    host_interface_name: String,
     /// interface name of the bridge for on the host
     bridge_interface_name: String,
     /// static mac address
@@ -50,11 +62,14 @@ struct InternalData {
     isolate: IsolateOption,
     /// Route metric for any default routes added for the network
     metric: Option<u32>,
+    /// Management mode of the bridge.
+    mode: BridgeMode,
     /// if set, no default gateway will be added
     no_default_route: bool,
     /// sef vrf for bridge
     vrf: Option<String>,
-    // TODO: add vlan
+    /// vlan id of the interface attached to the bridge
+    vlan: Option<u16>,
 }
 
 pub struct Bridge<'a> {
@@ -80,28 +95,50 @@ impl driver::NetworkDriver for Bridge<'_> {
         }
         let ipam = get_ipam_addresses(self.info.per_network_opts, self.info.network)?;
 
+        let mode: Option<String> = parse_option(&self.info.network.options, OPTION_MODE)?;
         let mtu: u32 = parse_option(&self.info.network.options, OPTION_MTU)?.unwrap_or(0);
         let isolate: IsolateOption = get_isolate_option(&self.info.network.options)?;
         let metric: u32 = parse_option(&self.info.network.options, OPTION_METRIC)?.unwrap_or(100);
         let no_default_route: bool =
             parse_option(&self.info.network.options, OPTION_NO_DEFAULT_ROUTE)?.unwrap_or(false);
         let vrf: Option<String> = parse_option(&self.info.network.options, OPTION_VRF)?;
+        let vlan: Option<u16> = parse_option(&self.info.network.options, OPTION_VLAN)?;
+        let host_interface_name = parse_option(
+            &self.info.per_network_opts.options,
+            OPTION_HOST_INTERFACE_NAME,
+        )?
+        .unwrap_or_else(|| "".to_string());
 
         let static_mac = match &self.info.per_network_opts.static_mac {
             Some(mac) => Some(CoreUtils::decode_address_from_hex(mac)?),
             None => None,
         };
 
+        let mode = get_bridge_mode_from_string(mode.as_deref())?;
+
+        // Cannot chain both conditions with "&&"
+        // until https://github.com/rust-lang/rust/issues/53667 is stable
+        if ipam.dhcp_enabled {
+            if let BridgeMode::Managed = mode {
+                return Err(NetavarkError::msg(
+                    "cannot use dhcp ipam driver without using the option mode=unmanaged",
+                ));
+            }
+        }
+
         self.data = Some(InternalData {
             bridge_interface_name: bridge_name,
             container_interface_name: self.info.per_network_opts.interface_name.clone(),
+            host_interface_name,
             mac_address: static_mac,
             ipam,
             mtu,
             isolate,
             metric: Some(metric),
+            mode,
             no_default_route,
             vrf,
+            vlan,
         });
         Ok(())
     }
@@ -125,9 +162,13 @@ impl driver::NetworkDriver for Bridge<'_> {
             data.bridge_interface_name, data.ipam.gateway_addresses
         );
 
-        setup_ipv4_fw_sysctl()?;
-        if data.ipam.ipv6_enabled {
-            setup_ipv6_fw_sysctl()?;
+        if let BridgeMode::Managed = data.mode {
+            if !self.info.network.internal {
+                setup_ipv4_fw_sysctl()?;
+                if data.ipam.ipv6_enabled {
+                    setup_ipv6_fw_sysctl()?;
+                }
+            }
         }
 
         let (host_sock, netns_sock) = netlink_sockets;
@@ -150,9 +191,33 @@ impl driver::NetworkDriver for Bridge<'_> {
         // interfaces map, but we only ever expect one, for response
         let mut interfaces: HashMap<String, types::NetInterface> = HashMap::new();
 
+        // if dhcp is enabled, we need to call the dhcp proxy to perform
+        // a dhcp lease.  it will also perform the IP address assignment
+        // to the container interface.
+        let subnets = if data.ipam.dhcp_enabled {
+            let (subnets, dns_servers, domain_name) = get_dhcp_lease(
+                &data.bridge_interface_name,
+                &data.container_interface_name,
+                self.info.netns_path,
+                &container_veth_mac,
+                self.info.container_hostname.as_deref().unwrap_or(""),
+                self.info.container_id,
+            )?;
+            // do not overwrite dns servers set by dns podman flag
+            if !self.info.container_dns_servers.is_some() {
+                response.dns_server_ips = dns_servers;
+            }
+            if domain_name.is_some() {
+                response.dns_search_domains = domain_name;
+            }
+            subnets
+        } else {
+            data.ipam.net_addresses.clone()
+        };
+
         let interface = types::NetInterface {
             mac_address: container_veth_mac,
-            subnets: Option::from(data.ipam.net_addresses.clone()),
+            subnets: Option::from(subnets),
         };
         // Add interface to interfaces (part of StatusBlock)
         interfaces.insert(data.container_interface_name.clone(), interface);
@@ -180,11 +245,8 @@ impl driver::NetworkDriver for Bridge<'_> {
                 }
             }
             let mut names = vec![self.info.container_name.to_string()];
-            match &self.info.per_network_opts.aliases {
-                Some(n) => {
-                    names.extend(n.clone());
-                }
-                None => {}
+            if let Some(n) = &self.info.per_network_opts.aliases {
+                names.extend(n.clone());
             }
 
             let gw = data
@@ -216,29 +278,29 @@ impl driver::NetworkDriver for Bridge<'_> {
             None
         };
 
-        // if the network is internal block routing and do not setup firewall rules
-        if self.info.network.internal {
-            CoreUtils::apply_sysctl_value(
-                format!(
-                    "/proc/sys/net/ipv4/conf/{}/forwarding",
-                    data.bridge_interface_name
-                ),
-                "0",
-            )?;
-            if data.ipam.ipv6_enabled {
+        if let BridgeMode::Managed = data.mode {
+            // if the network is internal block routing and do not setup firewall rules
+            if self.info.network.internal {
                 CoreUtils::apply_sysctl_value(
                     format!(
-                        "/proc/sys/net/ipv6/conf/{}/forwarding",
+                        "/proc/sys/net/ipv4/conf/{}/forwarding",
                         data.bridge_interface_name
                     ),
                     "0",
                 )?;
+                if data.ipam.ipv6_enabled {
+                    CoreUtils::apply_sysctl_value(
+                        format!(
+                            "/proc/sys/net/ipv6/conf/{}/forwarding",
+                            data.bridge_interface_name
+                        ),
+                        "0",
+                    )?;
+                }
+            } else {
+                self.setup_firewall(data)?
             }
-            // return here to skip setting up firewall rules
-            return Ok((response, aardvark_entry));
         }
-
-        self.setup_firewall(data)?;
 
         Ok((response, aardvark_entry))
     }
@@ -247,9 +309,13 @@ impl driver::NetworkDriver for Bridge<'_> {
         &self,
         netlink_sockets: (&mut netlink::Socket, &mut netlink::Socket),
     ) -> NetavarkResult<()> {
+        let mode: Option<String> = parse_option(&self.info.network.options, OPTION_MODE)?;
+        let mode = get_bridge_mode_from_string(mode.as_deref())?;
         let (host_sock, netns_sock) = netlink_sockets;
 
         let mut error_list = NetavarkErrorList::new();
+
+        dhcp_teardown(&self.info, netns_sock)?;
 
         let routes = core_utils::create_route_list(&self.info.network.routes)?;
         for route in routes.iter() {
@@ -263,6 +329,7 @@ impl driver::NetworkDriver for Bridge<'_> {
         let complete_teardown = match remove_link(
             host_sock,
             netns_sock,
+            mode,
             &bridge_name,
             &self.info.per_network_opts.interface_name,
         ) {
@@ -273,19 +340,14 @@ impl driver::NetworkDriver for Bridge<'_> {
             }
         };
 
-        if self.info.network.internal {
-            if !error_list.is_empty() {
-                return Err(NetavarkError::List(error_list));
+        if !self.info.network.internal && mode == BridgeMode::Managed {
+            match self.teardown_firewall(complete_teardown, bridge_name) {
+                Ok(_) => {}
+                Err(err) => {
+                    error_list.push(err);
+                }
             }
-            return Ok(());
         }
-
-        match self.teardown_firewall(complete_teardown, bridge_name) {
-            Ok(_) => {}
-            Err(err) => {
-                error_list.push(err);
-            }
-        };
 
         if !error_list.is_empty() {
             return Err(NetavarkError::List(error_list));
@@ -315,7 +377,7 @@ impl<'a> Bridge<'a> {
         nameservers: &'a Vec<IpAddr>,
         isolate: IsolateOption,
         bridge_name: String,
-    ) -> NetavarkResult<(SetupNetwork, PortForwardConfig)> {
+    ) -> NetavarkResult<(SetupNetwork, PortForwardConfig<'a>)> {
         let id_network_hash =
             CoreUtils::create_network_hash(&self.info.network.name, MAX_HASH_SIZE);
         let sn = SetupNetwork {
@@ -394,7 +456,12 @@ impl<'a> Bridge<'a> {
             )?;
         }
 
-        self.info.firewall.setup_network(sn)?;
+        let system_dbus = match zbus::blocking::Connection::system() {
+            Ok(c) => Some(c),
+            Err(_) => None,
+        };
+
+        self.info.firewall.setup_network(sn, &system_dbus)?;
 
         if spf.port_mappings.is_some() {
             // Need to enable sysctl localnet so that traffic can pass
@@ -409,7 +476,7 @@ impl<'a> Bridge<'a> {
             )?;
         }
 
-        self.info.firewall.setup_port_forward(spf)?;
+        self.info.firewall.setup_port_forward(spf, &system_dbus)?;
         Ok(())
     }
 
@@ -530,9 +597,12 @@ fn create_interfaces(
         data.bridge_interface_name.to_string(),
     )) {
         Ok(bridge) => (
-            check_link_is_bridge(bridge, &data.bridge_interface_name)?
-                .header
-                .index,
+            validate_bridge_link(
+                bridge,
+                data.vlan.is_some(),
+                host,
+                &data.bridge_interface_name,
+            )?,
             None,
         ),
         Err(err) => match err.unwrap() {
@@ -542,11 +612,22 @@ fn create_interfaces(
                     // for all other errors we want to return the error
                     return Err(err).wrap("get bridge interface");
                 }
+
+                if let BridgeMode::Unmanaged = data.mode {
+                    return Err(err)
+                        .wrap("in unmanaged mode, the bridge must already exist on the host");
+                }
+
                 let mut create_link_opts = netlink::CreateLinkOptions::new(
                     data.bridge_interface_name.to_string(),
                     InfoKind::Bridge,
                 );
                 create_link_opts.mtu = data.mtu;
+
+                if data.vlan.is_some() {
+                    create_link_opts.info_data =
+                        Some(InfoData::Bridge(vec![InfoBridge::VlanFiltering(true)]));
+                }
 
                 if let Some(vrf_name) = &data.vrf {
                     let vrf = match host.get_link(netlink::LinkID::Name(vrf_name.to_string())) {
@@ -647,17 +728,25 @@ fn create_veth_pair<'fd>(
     let mut peer = LinkMessage::default();
     netlink::parse_create_link_options(&mut peer, peer_opts);
 
-    let mut host_veth = netlink::CreateLinkOptions::new(String::from(""), InfoKind::Veth);
+    let mut host_veth =
+        netlink::CreateLinkOptions::new(data.host_interface_name.clone(), InfoKind::Veth);
     host_veth.mtu = data.mtu;
     host_veth.primary_index = primary_index;
     host_veth.info_data = Some(InfoData::Veth(InfoVeth::Peer(peer)));
 
     host.create_link(host_veth).map_err(|err| match err {
         NetavarkError::Netlink(ref e) if -e.raw_code() == libc::EEXIST => NetavarkError::wrap(
-            format!(
-                "create veth pair: interface {} already exists on container namespace",
-                data.container_interface_name
-            ),
+            if data.host_interface_name.is_empty() {
+                format!(
+                    "create veth pair: interface {} already exists on container namespace",
+                    data.container_interface_name
+                )
+            } else {
+                format!(
+                    "create veth pair: interface {} already exists on container namespace or {} exists on host namespace",
+                    data.container_interface_name, data.host_interface_name,
+                )
+            },
             err,
         ),
         _ => NetavarkError::wrap("create veth pair", err),
@@ -687,41 +776,52 @@ fn create_veth_pair<'fd>(
         ));
     }
 
-    exec_netns!(hostns_fd, netns_fd, res, {
-        disable_ipv6_autoconf(&data.container_interface_name)?;
-        if data.ipam.ipv6_enabled {
-            //  Disable dad inside the container too
-            let disable_dad_in_container = format!(
-                "/proc/sys/net/ipv6/conf/{}/accept_dad",
+    if let Some(vid) = data.vlan {
+        host.set_vlan_id(
+            host_link,
+            vid,
+            BridgeVlanInfoFlags::Pvid | BridgeVlanInfoFlags::Untagged,
+        )?;
+    }
+
+    if let BridgeMode::Managed = data.mode {
+        exec_netns!(hostns_fd, netns_fd, res, {
+            disable_ipv6_autoconf(&data.container_interface_name)?;
+            if data.ipam.ipv6_enabled {
+                //  Disable dad inside the container too
+                let disable_dad_in_container = format!(
+                    "/proc/sys/net/ipv6/conf/{}/accept_dad",
+                    &data.container_interface_name
+                );
+                core_utils::CoreUtils::apply_sysctl_value(disable_dad_in_container, "0")?;
+            }
+            let enable_arp_notify = format!(
+                "/proc/sys/net/ipv4/conf/{}/arp_notify",
                 &data.container_interface_name
             );
-            core_utils::CoreUtils::apply_sysctl_value(disable_dad_in_container, "0")?;
-        }
-        let enable_arp_notify = format!(
-            "/proc/sys/net/ipv4/conf/{}/arp_notify",
-            &data.container_interface_name
-        );
-        core_utils::CoreUtils::apply_sysctl_value(enable_arp_notify, "1")?;
+            core_utils::CoreUtils::apply_sysctl_value(enable_arp_notify, "1")?;
 
-        // disable strict reverse path search validation
-        let rp_filter = format!(
-            "/proc/sys/net/ipv4/conf/{}/rp_filter",
-            &data.container_interface_name
-        );
-        CoreUtils::apply_sysctl_value(rp_filter, "2")?;
-        Ok::<(), NetavarkError>(())
-    });
-    // check the result and return error
-    res?;
+            // disable strict reverse path search validation
+            let rp_filter = format!(
+                "/proc/sys/net/ipv4/conf/{}/rp_filter",
+                &data.container_interface_name
+            );
+            CoreUtils::apply_sysctl_value(rp_filter, "2")?;
+            Ok::<(), NetavarkError>(())
+        });
+        // check the result and return error
+        res?;
 
-    if data.ipam.ipv6_enabled {
-        let host_veth = host.get_link(netlink::LinkID::ID(host_link))?;
+        if data.ipam.ipv6_enabled {
+            let host_veth = host.get_link(netlink::LinkID::ID(host_link))?;
 
-        for nla in host_veth.attributes.into_iter() {
-            if let LinkAttribute::IfName(name) = nla {
-                //  Disable dad inside on the host too
-                let disable_dad_in_container = format!("/proc/sys/net/ipv6/conf/{name}/accept_dad");
-                core_utils::CoreUtils::apply_sysctl_value(disable_dad_in_container, "0")?;
+            for nla in host_veth.attributes.into_iter() {
+                if let LinkAttribute::IfName(name) = nla {
+                    //  Disable dad inside on the host too
+                    let disable_dad_in_container =
+                        format!("/proc/sys/net/ipv6/conf/{name}/accept_dad");
+                    core_utils::CoreUtils::apply_sysctl_value(disable_dad_in_container, "0")?;
+                }
             }
         }
     }
@@ -765,14 +865,54 @@ fn create_veth_pair<'fd>(
     Ok(mac)
 }
 
-/// make sure the LinkMessage has the kind bridge
-fn check_link_is_bridge(msg: LinkMessage, br_name: &str) -> NetavarkResult<LinkMessage> {
+/// Make sure the LinkMessage is of type bridge and if vlan is set also checks
+/// that the bridge has vlan_filtering enabled and if not enables it. Returns
+/// the link id or errors when the link is not a bridge.
+fn validate_bridge_link(
+    msg: LinkMessage,
+    vlan: bool,
+    netlink: &mut netlink::Socket,
+    br_name: &str,
+) -> NetavarkResult<u32> {
     for nla in msg.attributes.iter() {
         if let LinkAttribute::LinkInfo(info) = nla {
+            // when vlan is requested also check the VlanFiltering attribute
+            if vlan {
+                for inf in info.iter() {
+                    if let LinkInfo::Data(data) = inf {
+                        match data {
+                            InfoData::Bridge(vec) => {
+                                // set the return value here based on the VlanFiltering state
+                                let vlan_enabled = vec
+                                    .iter()
+                                    .find_map(|a| {
+                                        if let InfoBridge::VlanFiltering(on) = a {
+                                            Some(*on)
+                                        } else {
+                                            None
+                                        }
+                                    })
+                                    .unwrap_or(false);
+                                if !vlan_enabled {
+                                    // vlan filtering not enabled, enable it now
+                                    netlink.set_vlan_filtering(msg.header.index, true)?;
+                                }
+                            }
+                            _ => {
+                                return Err(NetavarkError::Message(format!(
+                                    "bridge interface {br_name} doesn't contain any bridge data",
+                                )))
+                            }
+                        }
+                        break;
+                    }
+                }
+            }
+
             for inf in info.iter() {
                 if let LinkInfo::Kind(kind) = inf {
                     if *kind == InfoKind::Bridge {
-                        return Ok(msg);
+                        return Ok(msg.header.index);
                     } else {
                         return Err(NetavarkError::Message(format!(
                             "bridge interface {br_name} already exists but is a {kind:?} interface"
@@ -814,6 +954,7 @@ fn check_link_is_vrf(msg: LinkMessage, vrf_name: &str) -> NetavarkResult<LinkMes
 fn remove_link(
     host: &mut netlink::Socket,
     netns: &mut netlink::Socket,
+    mode: BridgeMode,
     br_name: &str,
     container_veth_name: &str,
 ) -> NetavarkResult<bool> {
@@ -832,10 +973,12 @@ fn remove_link(
         .wrap("failed to get connected bridge interfaces")?;
     // no connected interfaces on that bridge we can remove it
     if links.is_empty() {
-        log::info!("removing bridge {}", br_name);
-        host.del_link(netlink::LinkID::ID(br.header.index))
-            .wrap(format!("failed to delete bridge {container_veth_name}"))?;
-        return Ok(true);
+        if let BridgeMode::Managed = mode {
+            log::info!("removing bridge {}", br_name);
+            host.del_link(netlink::LinkID::ID(br.header.index))
+                .wrap(format!("failed to delete bridge {container_veth_name}"))?;
+            return Ok(true);
+        }
     }
     Ok(false)
 }
@@ -849,4 +992,15 @@ fn get_isolate_option(opts: &Option<HashMap<String, String>>) -> NetavarkResult<
         ISOLATE_OPTION_FALSE => IsolateOption::Never,
         _ => IsolateOption::Never,
     })
+}
+
+fn get_bridge_mode_from_string(mode: Option<&str>) -> NetavarkResult<BridgeMode> {
+    match mode {
+        // default to l3 when unset
+        None | Some("") | Some("managed") => Ok(BridgeMode::Managed),
+        Some("unmanaged") => Ok(BridgeMode::Unmanaged),
+        Some(name) => Err(NetavarkError::msg(format!(
+            "invalid bridge mode \"{name}\""
+        ))),
+    }
 }

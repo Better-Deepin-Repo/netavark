@@ -240,11 +240,12 @@ export NETAVARK_FW=nftables
 }
 
 @test "$fw_driver - bridge driver must generate config for aardvark with custom dns server" {
-    # get a random port directly to avoid low ports e.g. 53 would not create nftables rules
-    dns_port=$((RANDOM+10000))
-
-    NETAVARK_DNS_PORT="$dns_port" run_netavark --file ${TESTSDIR}/testfiles/dualstack-bridge-custom-dns-server.json \
+    run_netavark --file ${TESTSDIR}/testfiles/dualstack-bridge-custom-dns-server.json \
         setup $(get_container_netns_path)
+
+    # check nftables
+    run_in_host_netns nft list chain inet netavark INPUT
+    assert "${lines[3]}" =~ "ip saddr 10.89.3.0/24 meta l4proto \{ tcp, udp \} th dport 53 accept" "DNS accept rule"
 
     # check aardvark config and running
     run_helper cat "$NETAVARK_TMPDIR/config/aardvark-dns/podman1"
@@ -255,7 +256,18 @@ export NETAVARK_FW=nftables
     aardvark_pid=$(cat "$NETAVARK_TMPDIR/config/aardvark-dns/aardvark.pid")
     assert "$ardvark_pid" =~ "[0-9]*" "aardvark pid not found"
     run_helper ps "$aardvark_pid"
-    assert "${lines[1]}" =~ ".*aardvark-dns --config $NETAVARK_TMPDIR/config/aardvark-dns -p $dns_port run" "aardvark not running or bad options"
+    assert "${lines[1]}" =~ ".*aardvark-dns --config $NETAVARK_TMPDIR/config/aardvark-dns -p 53 run" "aardvark not running or bad options"
+}
+
+@test "$fw_driver - aardvark-dns entries after startup failure" {
+    # force failure with invalid aardvark-dns binary
+    expected_rc=1 run_netavark --aardvark-binary ${TESTSDIR} --file ${TESTSDIR}/testfiles/dualstack-bridge-custom-dns-server.json \
+        setup $(get_container_netns_path)
+    assert "$output" =~ "aardvark-dns failed to start: Failed to find executable" "netavark error"
+
+    # check aardvark config must not exists after error
+    run_helper ls "$NETAVARK_TMPDIR/config/aardvark-dns"
+    assert "$output" == "" "No aardvark entries"
 }
 
 @test "$fw_driver - bridge driver must generate config for aardvark with multiple custom dns server" {
@@ -305,7 +317,8 @@ export NETAVARK_FW=nftables
 
     # check nftables
     run_in_host_netns nft list chain inet netavark NETAVARK-HOSTPORT-DNAT
-    assert "${lines[2]}" =~ "ip daddr 10.89.3.1 udp dport 53 dnat ip to 10.89.3.1:$dns_port" "DNS forward rule"
+    assert "${lines[2]}" =~ "ip6 daddr fd10:88:a::1 meta l4proto \{ tcp, udp \} th dport 53 dnat ip6 to \[fd10:88:a::1\]:$dns_port" "DNS forward rule ip6"
+    assert "${lines[3]}" =~ "ip daddr 10.89.3.1 meta l4proto \{ tcp, udp \} th dport 53 dnat ip to 10.89.3.1:$dns_port" "DNS forward rule ip4"
 
     # check aardvark config and running
     run_helper cat "$NETAVARK_TMPDIR/config/aardvark-dns/podman1"
@@ -458,6 +471,10 @@ export NETAVARK_FW=nftables
 @test "$fw_driver - port forwarding with hostip ipv6 - udp" {
     add_dummy_interface_on_host dummy0 "fd65:8371:648b:0c06::1/64"
     test_port_fw ip=6 proto=udp hostip="fd65:8371:648b:0c06::1"
+}
+
+@test "$fw_driver - port forwarding with localhost - tcp" {
+    test_port_fw hostip="127.0.0.1"
 }
 
 @test "bridge ipam none" {
@@ -969,4 +986,57 @@ function check_simple_bridge_nftables() {
     assert "${lines[5]}" =~ "ip daddr 10.88.0.0/16 ct state established,related accept" "Related,established rule"
     assert "${lines[6]}" =~ "ip saddr 10.88.0.0/16 accept" "Subnet saddr accept rule"
     assert "${#lines[@]}" = 9 "too many FORWARD rules"
+}
+
+# regression test for https://github.com/containers/netavark/issues/1068
+@test "$fw_driver - port firewall rule cleanup port protocol" {
+    run_netavark --file ${TESTSDIR}/testfiles/bridge-port-tcp-udp.json setup $(get_container_netns_path)
+
+    local chain="nv_2f259bab_10_88_0_0_nm16_dnat"
+    run_in_host_netns nft list chain inet netavark $chain
+
+    # extra check so we can be sure that these rules exists before checking later of they are removed
+    assert "$output" =~ "ip saddr 10.88.0.0/16 ip daddr 192.168.188.25 tcp dport 8080 jump NETAVARK-HOSTPORT-SETMARK"
+    assert "$output" =~ "ip saddr 127.0.0.1 ip daddr 192.168.188.25 tcp dport 8080 jump NETAVARK-HOSTPORT-SETMARK"
+    assert "$output" =~ "ip daddr 192.168.188.25 tcp dport 8080 dnat ip to 10.88.0.14:8080"
+    assert "$output" =~ "ip saddr 10.88.0.0/16 ip daddr 192.168.188.25 udp dport 8080 jump NETAVARK-HOSTPORT-SETMARK"
+    assert "$output" =~ "ip saddr 127.0.0.1 ip daddr 192.168.188.25 udp dport 8080 jump NETAVARK-HOSTPORT-SETMARK"
+    assert "$output" =~ "ip daddr 192.168.188.25 udp dport 8080 dnat ip to 10.88.0.14:8080"
+
+    run_netavark --file ${TESTSDIR}/testfiles/bridge-port-tcp-udp.json teardown $(get_container_netns_path)
+
+    expected_rc=1 run_in_host_netns nft list chain inet netavark $chain
+}
+
+# regression test for https://github.com/containers/netavark/issues/1129
+@test "$fw_driver - port firewall rule cleanup host ip" {
+    run_netavark --file ${TESTSDIR}/testfiles/bridge-port-hostip.json setup $(get_container_netns_path)
+
+    local chain="nv_2f259bab_10_88_0_0_nm16_dnat"
+    run_in_host_netns nft list chain inet netavark $chain
+
+    run_in_host_netns nft list ruleset
+
+    # extra check so we can be sure that these rules exists before checking later of they are removed
+    assert "$output" =~ "ip saddr 10.88.0.0/16 ip daddr 192.168.188.25 tcp dport 8080 jump NETAVARK-HOSTPORT-SETMARK"
+    assert "$output" =~ "ip saddr 127.0.0.1 ip daddr 192.168.188.25 tcp dport 8080 jump NETAVARK-HOSTPORT-SETMARK"
+    assert "$output" =~ "ip daddr 192.168.188.25 tcp dport 8080 dnat ip to 10.88.0.14:8080"
+    assert "$output" =~ "ip saddr 10.88.0.0/16 ip daddr 192.168.188.24 tcp dport 8080 jump NETAVARK-HOSTPORT-SETMARK"
+    assert "$output" =~ "ip saddr 127.0.0.1 ip daddr 192.168.188.24 tcp dport 8080 jump NETAVARK-HOSTPORT-SETMARK"
+    assert "$output" =~ "ip daddr 192.168.188.24 tcp dport 8080 dnat ip to 10.88.0.14:8080"
+
+    run_netavark --file ${TESTSDIR}/testfiles/bridge-port-hostip.json teardown $(get_container_netns_path)
+
+    expected_rc=1 run_in_host_netns nft list chain inet netavark $chain
+    run_in_host_netns nft list chain inet netavark NETAVARK-HOSTPORT-DNAT
+    assert "$output" == $'table inet netavark {\n\tchain NETAVARK-HOSTPORT-DNAT {\n\t}\n}' "NETAVARK-HOSTPORT-DNAT chain must be empty"
+}
+
+@test "$fw_driver - aardvark-dns error cleanup" {
+    expected_rc=1 run_netavark -a /usr/bin/false --file ${TESTSDIR}/testfiles/dualstack-bridge-custom-dns-server.json setup $(get_container_netns_path)
+    assert_json ".error" "error while applying dns entries: IO error: aardvark-dns exited unexpectedly without error message" "aardvark-dns error"
+
+    run_in_host_netns nft list table inet netavark
+    assert "$output" !~ "10.89.3.0/24" "leaked network nft rules after setup error"
+    assert "$output" !~ "fd10:88:a::/64" "leaked network nft rules after setup error"
 }

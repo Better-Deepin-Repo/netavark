@@ -13,11 +13,11 @@ use crate::{
     wrap,
 };
 
-/// File layout looks like this
-/// $config/firewall/
-///                 - firewall-driver -> name of the firewall driver
-///                 - networks/$netID -> network config setup
-///                 - ports/$netID_$conID -> port config
+// File layout looks like this
+// $config/firewall/
+//                 - firewall-driver -> name of the firewall driver
+//                 - networks/$netID -> network config setup
+//                 - ports/$netID_$conID -> port config
 
 const FIREWALL_DIR: &str = "firewall";
 const FIREWALL_DRIVER_FILE: &str = "firewall-driver";
@@ -328,14 +328,9 @@ mod tests {
         let res = remove_fw_config(config_dir, network_id, container_id, true);
         assert!(res.is_ok(), "remove_fw_config failed");
 
-        assert_eq!(
-            paths.net_conf_file.exists(),
-            false,
-            "net conf should not exists"
-        );
-        assert_eq!(
-            paths.port_conf_file.exists(),
-            false,
+        assert!(!paths.net_conf_file.exists(), "net conf should not exists");
+        assert!(
+            !paths.port_conf_file.exists(),
             "port conf should not exists"
         );
 

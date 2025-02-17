@@ -12,8 +12,6 @@ packages:
   netavark-centos:
     pkg_tool: centpkg
     specfile_path: rpm/netavark.spec
-  netavark-rhel:
-    specfile_path: rpm/netavark.spec
 
 srpm_build_deps:
   - cargo
@@ -49,15 +47,6 @@ jobs:
       - centos-stream-10-aarch64
     enable_net: true
 
-  - job: copr_build
-    trigger: pull_request
-    packages: [netavark-rhel]
-    notifications: *copr_build_failure_notification
-    targets:
-      - epel-9-x86_64
-      - epel-9-aarch64
-    enable_net: true
-
   # Run on commit to main branch
   - job: copr_build
     trigger: commit
@@ -88,13 +77,16 @@ jobs:
 
   - job: koji_build
     trigger: commit
+    packages: [netavark-fedora]
+    sidetag_group: netavark-releases
     dist_git_branches:
       - fedora-all
 
-        # NOTE: Bodhi update tasks are disabled to allow netavark and aardvark-dns X.Y
-        # builds in a single manual bodhi update. Leaving this commented out
-        # but not deleted so it's not forgotten.
-        #- job: bodhi_update
-        #trigger: commit
-        #dist_git_branches:
-        #- fedora-branched # rawhide updates are created automatically
+  - job: bodhi_update
+    trigger: koji_build
+    packages: [netavark-fedora]
+    sidetag_group: netavark-releases
+    dependencies:
+      - aardvark-dns
+    dist_git_branches:
+      - fedora-all

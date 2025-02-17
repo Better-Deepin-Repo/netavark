@@ -16,7 +16,7 @@ env:
     CARGO_TARGET_DIR: "$CIRRUS_WORKING_DIR/targets"
     # Save a little typing (path relative to $CIRRUS_WORKING_DIR)
     SCRIPT_BASE: "./contrib/cirrus"
-    IMAGE_SUFFIX: "c20240529t141726z-f40f39d13"
+    IMAGE_SUFFIX: "c20250131t121915z-f41f40d13"
     FEDORA_NETAVARK_IMAGE: "fedora-netavark-${IMAGE_SUFFIX}"
     AARDVARK_DNS_BRANCH: "main"
     AARDVARK_DNS_URL: "https://api.cirrus-ci.com/v1/artifact/github/containers/aardvark-dns/success/binary.zip?branch=${AARDVARK_DNS_BRANCH}"
@@ -224,30 +224,18 @@ meta_task:
     clone_script: &noop mkdir -p $CIRRUS_WORKING_DIR  # source not needed
     script: /usr/local/bin/entrypoint.sh
 
-ubuntu20_build_task:
-    alias: ubuntu20_build
+msrv_build_task:
+    alias: msrv_build
     depends_on:
       - "build"
     gce_instance: *standard_gce_x86_64
     container:
         cpu: 2 # Do not increase, will result in scheduling delays
         memory: "8Gb"
-        image: quay.io/libpod/ubuntu20rust
+        # When bumping the image always remember to update the README MSRV as well.
+        image: quay.io/libpod/nv-rust:1.76
     script:
-        - cargo build
-
-
-centos9_build_task:
-    alias: centos9_build
-    depends_on:
-      - "build"
-    gce_instance: *standard_gce_x86_64
-    container:
-        cpu: 2 # Do not increase, will result in scheduling delays
-        memory: "8Gb"
-        image: quay.io/libpod/centos9rust
-    script:
-        - cargo build
+        - make build
 
 
 success_task:
@@ -263,8 +251,7 @@ success_task:
     - "integration"
     - "integration_aarch64"
     - "meta"
-    - "ubuntu20_build"
-    - "centos9_build"
+    - "msrv_build"
   gce_instance: *standard_gce_x86_64
   env:
     API_URL_BASE: "https://api.cirrus-ci.com/v1/artifact/build/${CIRRUS_BUILD_ID}"

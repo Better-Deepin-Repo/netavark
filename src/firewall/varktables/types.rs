@@ -82,7 +82,7 @@ pub struct VarkChain<'a> {
     pub td_policy: Option<TeardownPolicy>,
 }
 
-impl<'a> VarkChain<'a> {
+impl VarkChain<'_> {
     fn new(
         driver: &IPTables,
         table: String,
@@ -373,13 +373,15 @@ pub fn get_network_chains<'a>(
 
     // Always add ACCEPT rules in firewall for dns traffic from containers
     // to gateway when using bridge network with internal dns.
-    netavark_input_chain.build_rule(VarkRule::new(
-        format!(
-            "-p {} -s {} --dport {} -j {}",
-            "udp", network, dns_port, ACCEPT
-        ),
-        Some(TeardownPolicy::OnComplete),
-    ));
+    for proto in ["udp", "tcp"] {
+        netavark_input_chain.build_rule(VarkRule::new(
+            format!(
+                "-p {} -s {} --dport {} -j {}",
+                proto, network, dns_port, ACCEPT
+            ),
+            Some(TeardownPolicy::OnComplete),
+        ));
+    }
     chains.push(netavark_input_chain);
 
     // Drop all invalid packages, due a race the container source ip could be leaked on the local
@@ -522,120 +524,121 @@ pub fn get_port_forwarding_chains<'a>(
                 ip_value = format!("[{ip_value}]")
             }
             netavark_hostport_dn_chain.create = true;
-            netavark_hostport_dn_chain.build_rule(VarkRule::new(
-                format!(
-                    "-j {} -d {} -p {} --dport {} --to-destination {}:{}",
-                    DNAT, dns_ip, "udp", 53, ip_value, pfwd.dns_port
-                ),
-                Some(TeardownPolicy::OnComplete),
-            ));
+            for proto in ["udp", "tcp"] {
+                netavark_hostport_dn_chain.build_rule(VarkRule {
+                    rule: format!(
+                        "-j {} -d {} -p {} --dport {} --to-destination {}:{}",
+                        DNAT, dns_ip, proto, 53, ip_value, pfwd.dns_port
+                    ),
+                    // rule should be first otherwise another container might hijack all 53 traffic to itself
+                    position: Some(1),
+                    td_policy: Some(TeardownPolicy::OnComplete),
+                });
+            }
         }
     }
 
-    match pfwd.port_mappings {
-        Some(ports) => {
-            for i in ports {
-                let host_ip = if i.host_ip.is_empty() {
-                    None
-                } else {
-                    match i.host_ip.parse() {
-                        Ok(ip) => match ip {
-                            IpAddr::V4(v4) => {
-                                if is_ipv6 {
-                                    continue;
-                                }
-                                if !v4.is_unspecified() {
-                                    Some(IpAddr::V4(v4))
-                                } else {
-                                    None
-                                }
+    if let Some(ports) = pfwd.port_mappings {
+        for i in ports {
+            let host_ip = if i.host_ip.is_empty() {
+                None
+            } else {
+                match i.host_ip.parse() {
+                    Ok(ip) => match ip {
+                        IpAddr::V4(v4) => {
+                            if is_ipv6 {
+                                continue;
                             }
-                            IpAddr::V6(v6) => {
-                                if !is_ipv6 {
-                                    continue;
-                                }
-                                if !v6.is_unspecified() {
-                                    Some(IpAddr::V6(v6))
-                                } else {
-                                    None
-                                }
+                            if !v4.is_unspecified() {
+                                Some(IpAddr::V4(v4))
+                            } else {
+                                None
                             }
-                        },
-                        Err(_) => {
-                            return Err(NetavarkError::msg(format!(
-                                "invalid host ip \"{}\" provided for port {}",
-                                i.host_ip, i.host_port,
-                            )));
                         }
+                        IpAddr::V6(v6) => {
+                            if !is_ipv6 {
+                                continue;
+                            }
+                            if !v6.is_unspecified() {
+                                Some(IpAddr::V6(v6))
+                            } else {
+                                None
+                            }
+                        }
+                    },
+                    Err(_) => {
+                        return Err(NetavarkError::msg(format!(
+                            "invalid host ip \"{}\" provided for port {}",
+                            i.host_ip, i.host_port,
+                        )));
                     }
-                };
-
-                // hostport dnat
-                let is_range = i.range > 1;
-                let mut host_port = i.host_port.to_string();
-                if is_range {
-                    host_port = format!("{}:{}", i.host_port, (i.host_port + (i.range - 1)))
                 }
-                netavark_hostport_dn_chain.build_rule(VarkRule::new(
-                    format!(
-                        // I'm leaving this commented code for now in the case
-                        // we need to revert.
-                        // "-j {} -p {} -m multiport --destination-ports {} {}",
-                        "-j {} -p {} --dport {} {}",
-                        network_dn_chain_name, i.protocol, &host_port, comment_dn_network_cid
-                    ),
-                    None,
-                ));
+            };
 
-                let mut dn_setmark_rule_localhost = format!(
-                    "-j {} -s {} -p {} --dport {}",
-                    NETAVARK_HOSTPORT_SETMARK, network_address, i.protocol, &host_port
-                );
-
-                let mut dn_setmark_rule_subnet = format!(
-                    "-j {} -s {} -p {} --dport {}",
-                    NETAVARK_HOSTPORT_SETMARK, localhost_ip, i.protocol, &host_port
-                );
-
-                // if a destination ip address is provided, we need to alter
-                // the rule a bit
-                if let Some(host_ip) = host_ip {
-                    dn_setmark_rule_localhost = format!("{dn_setmark_rule_localhost} -d {host_ip}");
-                    dn_setmark_rule_subnet = format!("{dn_setmark_rule_subnet} -d {host_ip}");
-                }
-
-                // dn container (the actual port usages)
-                netavark_hashed_dn_chain.build_rule(VarkRule::new(dn_setmark_rule_localhost, None));
-
-                netavark_hashed_dn_chain.build_rule(VarkRule::new(dn_setmark_rule_subnet, None));
-
-                let mut container_ip_value = container_ip.to_string();
-                if is_ipv6 {
-                    container_ip_value = format!("[{container_ip_value}]")
-                }
-                let mut container_port = i.container_port.to_string();
-                if is_range {
-                    container_port = format!(
-                        "{}-{}/{}",
-                        i.container_port,
-                        (i.container_port + (i.range - 1)),
-                        i.host_port
-                    );
-                }
-                let mut dnat_rule = format!(
-                    "-j {} -p {} --to-destination {}:{} --destination-port {}",
-                    DNAT, i.protocol, container_ip_value, container_port, &host_port
-                );
-
-                // if a destination ip address is provided, we need to alter
-                // the rule a bit
-                if let Some(host_ip) = host_ip {
-                    dnat_rule = format!("{dnat_rule} -d {host_ip}")
-                }
-                netavark_hashed_dn_chain.build_rule(VarkRule::new(dnat_rule, None));
+            // hostport dnat
+            let is_range = i.range > 1;
+            let mut host_port = i.host_port.to_string();
+            if is_range {
+                host_port = format!("{}:{}", i.host_port, (i.host_port + (i.range - 1)))
             }
+            netavark_hostport_dn_chain.build_rule(VarkRule::new(
+                format!(
+                    // I'm leaving this commented code for now in the case
+                    // we need to revert.
+                    // "-j {} -p {} -m multiport --destination-ports {} {}",
+                    "-j {} -p {} --dport {} {}",
+                    network_dn_chain_name, i.protocol, &host_port, comment_dn_network_cid
+                ),
+                None,
+            ));
+
+            let mut dn_setmark_rule_localhost = format!(
+                "-j {} -s {} -p {} --dport {}",
+                NETAVARK_HOSTPORT_SETMARK, network_address, i.protocol, &host_port
+            );
+
+            let mut dn_setmark_rule_subnet = format!(
+                "-j {} -s {} -p {} --dport {}",
+                NETAVARK_HOSTPORT_SETMARK, localhost_ip, i.protocol, &host_port
+            );
+
+            // if a destination ip address is provided, we need to alter
+            // the rule a bit
+            if let Some(host_ip) = host_ip {
+                dn_setmark_rule_localhost = format!("{dn_setmark_rule_localhost} -d {host_ip}");
+                dn_setmark_rule_subnet = format!("{dn_setmark_rule_subnet} -d {host_ip}");
+            }
+
+            // dn container (the actual port usages)
+            netavark_hashed_dn_chain.build_rule(VarkRule::new(dn_setmark_rule_localhost, None));
+
+            netavark_hashed_dn_chain.build_rule(VarkRule::new(dn_setmark_rule_subnet, None));
+
+            let mut container_ip_value = container_ip.to_string();
+            if is_ipv6 {
+                container_ip_value = format!("[{container_ip_value}]")
+            }
+            let mut container_port = i.container_port.to_string();
+            if is_range {
+                container_port = format!(
+                    "{}-{}/{}",
+                    i.container_port,
+                    (i.container_port + (i.range - 1)),
+                    i.host_port
+                );
+            }
+            let mut dnat_rule = format!(
+                "-j {} -p {} --to-destination {}:{} --destination-port {}",
+                DNAT, i.protocol, container_ip_value, container_port, &host_port
+            );
+
+            // if a destination ip address is provided, we need to alter
+            // the rule a bit
+            if let Some(host_ip) = host_ip {
+                dnat_rule = format!("{dnat_rule} -d {host_ip}")
+            }
+            netavark_hashed_dn_chain.build_rule(VarkRule::new(dnat_rule, None));
         }
-        None => {}
     };
 
     //  The order is important here.  Be certain before changing it

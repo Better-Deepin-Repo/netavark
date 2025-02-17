@@ -6,19 +6,20 @@ use std::convert::TryFrom;
 use std::error::Error;
 
 use g_rpc::netavark_proxy_client::NetavarkProxyClient;
+use hyper_util::rt::TokioIo;
 use log::debug;
 use std::fs::File;
 use std::net::AddrParseError;
 use std::net::Ipv4Addr;
 use std::str::FromStr;
 use tokio::net::UnixStream;
-use tonic::transport::{Channel, Endpoint, Uri};
+use tonic::transport::{Channel, Endpoint};
 use tonic::Request;
 use tower::service_fn;
 
 #[allow(clippy::unwrap_used)]
 pub mod g_rpc {
-    include!("../proto-build/netavark_proxy.rs");
+    include!(concat!(env!("OUT_DIR"), "/netavark_proxy.rs"));
     use crate::dhcp_proxy::lib::VectorConv;
     use crate::dhcp_proxy::types::{CustomErr, ProxyError};
     use mozim::DhcpV4Lease;
@@ -40,10 +41,7 @@ pub mod g_rpc {
     impl From<DhcpV4Lease> for Lease {
         fn from(l: DhcpV4Lease) -> Lease {
             // Since these fields are optional as per mozim. Match them first and then set them
-            let domain_name = match l.domain_name {
-                None => String::from(""),
-                Some(l) => l,
-            };
+            let domain_name = l.domain_name.unwrap_or_default();
             let mtu = l.mtu.unwrap_or(0) as u32;
 
             Lease {
@@ -186,12 +184,12 @@ impl NetworkConfig {
         // We know this is safe and if it ever fails test will catch it
         let endpoint = Endpoint::try_from("http://[::1]").unwrap();
 
+        debug!("using uds path: {}", &p);
         let path = p.clone();
         let channel = endpoint
-            .connect_with_connector(service_fn(move |_: Uri| {
-                let pp = p.clone();
-                debug!("using uds path: {}", pp);
-                UnixStream::connect(pp)
+            .connect_with_connector(service_fn(move |_| {
+                let path = p.clone();
+                async{Ok::<_, std::io::Error>(TokioIo::new(UnixStream::connect(path).await?))}
             }))
             .await
             .map_err(|e| {
@@ -204,7 +202,7 @@ impl NetworkConfig {
                             .and_then(|e| e.downcast_ref::<std::io::Error>())
                             .and_then(|e| {
                                 if e.kind() == std::io::ErrorKind::NotFound || e.kind() == std::io::ErrorKind::ConnectionRefused {
-                                    Some(format!("socket \"{path}\": {e}, is the netavark-dhcp-proxy.socket unit enabled?"))
+                                    Some(format!("socket \"{}\": {e}, is the netavark-dhcp-proxy.socket unit enabled?", &path))
                                 } else {
                                     None
                                 }

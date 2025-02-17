@@ -1,6 +1,6 @@
 use chrono::{DateTime, Utc};
 use std::env;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::process::Command;
 
 fn main() {
@@ -32,11 +32,10 @@ fn main() {
         .type_attribute(
             "netavark_proxy.NetworkConfig",
             "#[derive(serde::Serialize)]",
-        )
-        .out_dir(PathBuf::from("src/proto-build"));
+        );
 
     builder
-        .compile(&[Path::new("src/proto/proxy.proto")], &[Path::new("proto")])
+        .compile_protos(&[Path::new("src/proto/proxy.proto")], &[Path::new("proto")])
         .unwrap_or_else(|e| panic!("Failed at builder: {:?}", e.to_string()));
 
     // Generate the default 'cargo:' instruction output
@@ -75,6 +74,7 @@ fn main() {
         "none" => "none",
         inv => panic!("Invalid default firewall driver {}", inv),
     };
+    println!("cargo:rustc-check-cfg=cfg(default_fw, values(\"nftables\", \"iptables\", \"none\"))");
     println!("cargo:rustc-cfg=default_fw=\"{}\"", fwdriver);
     println!("cargo:rustc-env=DEFAULT_FW={fwdriver}");
 }

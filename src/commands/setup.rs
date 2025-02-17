@@ -3,8 +3,8 @@ use crate::commands::get_config_dir;
 use crate::dns::aardvark::Aardvark;
 use crate::error::{NetavarkError, NetavarkResult};
 use crate::firewall;
-use crate::network::driver::{get_network_driver, DriverInfo};
-use crate::network::netlink::LinkID;
+use crate::network::driver::{get_network_driver, DriverInfo, NetworkDriver};
+use crate::network::netlink::{self, LinkID};
 use crate::network::{self};
 use crate::network::{core_utils, types};
 
@@ -47,13 +47,10 @@ impl Setup {
                 return Err(NetavarkError::wrap("invalid namespace path", e));
             }
         }
-        debug!("{:?}", "Setting up...");
+        debug!("Setting up...");
         let network_options = network::types::NetworkOptions::load(input_file)?;
 
-        let firewall_driver = match firewall::get_supported_firewall_driver(firewall_driver) {
-            Ok(driver) => driver,
-            Err(e) => return Err(e),
-        };
+        let firewall_driver = firewall::get_supported_firewall_driver(firewall_driver)?;
 
         let mut response: HashMap<String, types::StatusBlock> = HashMap::new();
 
@@ -79,6 +76,7 @@ impl Setup {
                     firewall: firewall_driver.as_ref(),
                     container_id: &network_options.container_id,
                     container_name: &network_options.container_name,
+                    container_hostname: &network_options.container_hostname,
                     container_dns_servers: &network_options.dns_servers,
                     netns_host: hostns.file.as_fd(),
                     netns_container: netns.file.as_fd(),
@@ -109,17 +107,11 @@ impl Setup {
                     Ok((s, a)) => (s, a),
                     Err(e) => {
                         // now teardown the already setup drivers
-                        for dri in drivers.iter().take(i) {
-                            match dri.teardown((&mut hostns.netlink, &mut netns.netlink)) {
-                                Ok(_) => {}
-                                Err(e) => {
-                                    error!(
-                                    "failed to cleanup previous networks after setup failed: {}",
-                                    e
-                                )
-                                }
-                            };
-                        }
+                        teardown_drivers(
+                            drivers.iter().take(i),
+                            &mut hostns.netlink,
+                            &mut netns.netlink,
+                        );
                         return Err(e);
                     }
                 };
@@ -139,22 +131,19 @@ impl Setup {
                     // ignore error when path already exists
                     Err(ref e) if e.kind() == std::io::ErrorKind::AlreadyExists => {}
                     Err(e) => {
-                        return Err(std::io::Error::new(
-                            std::io::ErrorKind::Other,
-                            format!("failed to create aardvark-dns directory: {e}"),
-                        )
-                        .into());
+                        teardown_drivers(drivers.iter(), &mut hostns.netlink, &mut netns.netlink);
+                        return Err(NetavarkError::wrap(
+                            format!("failed to create aardvark-dns directory {}", path.display()),
+                            NetavarkError::Io(e),
+                        ));
                     }
                 }
 
                 let aardvark_interface = Aardvark::new(path, rootless, aardvark_bin, dns_port);
 
                 if let Err(er) = aardvark_interface.commit_netavark_entries(aardvark_entries) {
-                    return Err(std::io::Error::new(
-                        std::io::ErrorKind::Other,
-                        format!("Error while applying dns entries: {er}"),
-                    )
-                    .into());
+                    teardown_drivers(drivers.iter(), &mut hostns.netlink, &mut netns.netlink);
+                    return Err(NetavarkError::wrap("error while applying dns entries", er));
                 }
             } else {
                 info!(
@@ -166,7 +155,22 @@ impl Setup {
         debug!("{:#?}", response);
         let response_json = serde_json::to_string(&response)?;
         println!("{response_json}");
-        debug!("{:?}", "Setup complete");
+        debug!("Setup complete");
         Ok(())
+    }
+}
+
+fn teardown_drivers<'a, I>(drivers: I, host: &mut netlink::Socket, netns: &mut netlink::Socket)
+where
+    I: Iterator<Item = &'a Box<dyn NetworkDriver + 'a>>,
+{
+    for driver in drivers {
+        if let Err(e) = driver.teardown((host, netns)) {
+            error!(
+                "failed to cleanup network {} after setup failed: {}",
+                driver.network_name(),
+                e
+            );
+        };
     }
 }
