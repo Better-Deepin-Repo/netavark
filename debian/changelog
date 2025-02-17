@@ -1,3 +1,9 @@
+netavark (1.14.0-1) experimental; urgency=medium
+
+  * New upstream relesae
+
+ -- Reinhard Tartler <siretart@tauware.de>  Mon, 17 Feb 2025 13:45:43 -0500
+
 netavark (1.12.1-9) unstable; urgency=medium
 
   * Revert back to using uptables. Closes: #1092742, Reopens: #1091318
