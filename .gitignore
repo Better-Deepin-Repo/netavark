@@ -3,8 +3,8 @@ target/
 targets/
 *.swp
 netavark.1
+netavark-firewalld.7
 vendor/
 .idea/*
-src/proto-build/netavark_proxy.rs
 contrib/systemd/*/*.service
 .vscode*

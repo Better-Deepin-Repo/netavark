@@ -560,6 +560,10 @@ fw_driver=iptables
     test_port_fw ip=6 proto=udp hostip="fd65:8371:648b:0c06::1"
 }
 
+@test "$fw_driver - port forwarding with localhost - tcp" {
+    test_port_fw hostip="127.0.0.1"
+}
+
 # Test that port forwarding works with strict Reverse Path Forwarding enabled on the host
 @test "$fw_driver - port forwarding with two networks and RPF - tcp" {
     # First, enable strict RPF on host/container ns.
@@ -1087,4 +1091,13 @@ function check_simple_bridge_iptables() {
     assert "${lines[2]}" == "-A NETAVARK_FORWARD -d 10.88.0.0/16 -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT" "NETAVARK_FORWARD rule 2"
     assert "${lines[3]}" == "-A NETAVARK_FORWARD -s 10.88.0.0/16 -j ACCEPT" "NETAVARK_FORWARD rule 3"
     assert "${#lines[@]}" = 4 "too many NETAVARK_FORWARD rules"
+}
+
+@test "$fw_driver - aardvark-dns error cleanup" {
+    expected_rc=1 run_netavark -a /usr/bin/false --file ${TESTSDIR}/testfiles/dualstack-bridge-custom-dns-server.json setup $(get_container_netns_path)
+    assert_json ".error" "error while applying dns entries: IO error: aardvark-dns exited unexpectedly without error message" "aardvark-dns error"
+    run_in_host_netns iptables -S
+    assert "$output" !~ "10.89.3.0/24" "leaked network iptables rules after setup error"
+    run_in_host_netns iptables -S -t nat
+    assert "$output" !~ "10.89.3.0/24" "leaked network iptables NAT rules after setup error"
 }

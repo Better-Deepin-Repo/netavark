@@ -72,10 +72,7 @@ impl Teardown {
             }
         }
 
-        let firewall_driver = match firewall::get_supported_firewall_driver(firewall_driver) {
-            Ok(driver) => driver,
-            Err(e) => return Err(e),
-        };
+        let firewall_driver = firewall::get_supported_firewall_driver(firewall_driver)?;
 
         let (mut hostns, mut netns) =
             core_utils::open_netlink_sockets(&self.network_namespace_path)?;
@@ -96,6 +93,7 @@ impl Teardown {
                     firewall: firewall_driver.as_ref(),
                     container_id: &network_options.container_id,
                     container_name: &network_options.container_name,
+                    container_hostname: &network_options.container_hostname,
                     container_dns_servers: &network_options.dns_servers,
                     netns_host: hostns.file.as_fd(),
                     netns_container: netns.file.as_fd(),
