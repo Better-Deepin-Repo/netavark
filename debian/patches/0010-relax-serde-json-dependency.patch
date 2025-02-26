@@ -7,7 +7,7 @@ Subject: relax serde-json dependency
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/Cargo.toml b/Cargo.toml
-index d19c8af..af05579 100644
+index 30c0a81..23d17ac 100644
 --- a/Cargo.toml
 +++ b/Cargo.toml
 @@ -40,7 +40,7 @@ libc = "0.2.157"

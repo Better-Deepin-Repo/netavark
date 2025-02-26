@@ -7,7 +7,7 @@ Subject: Relax nispor dependency
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/Cargo.toml b/Cargo.toml
-index 2c5ad37..3523352 100644
+index 57c2d39..25cc115 100644
 --- a/Cargo.toml
 +++ b/Cargo.toml
 @@ -61,7 +61,7 @@ prost = "0.13.4"

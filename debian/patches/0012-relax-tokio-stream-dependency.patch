@@ -7,7 +7,7 @@ Subject: relax tokio-stream dependency
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/Cargo.toml b/Cargo.toml
-index af05579..2c5ad37 100644
+index 23d17ac..57c2d39 100644
 --- a/Cargo.toml
 +++ b/Cargo.toml
 @@ -54,7 +54,7 @@ nftables = "0.5.0"

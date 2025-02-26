@@ -6,11 +6,11 @@ Subject: Relax env_logger dependency
  Cargo.toml | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
 
-Index: netavark/Cargo.toml
-===================================================================
---- netavark.orig/Cargo.toml
-+++ netavark/Cargo.toml
-@@ -33,7 +33,7 @@ deps-serde = ["chrono/serde", "url/serde
+diff --git a/Cargo.toml b/Cargo.toml
+index 816b5cd..410a152 100644
+--- a/Cargo.toml
++++ b/Cargo.toml
+@@ -33,7 +33,7 @@ deps-serde = ["chrono/serde", "url/serde"]
  [dependencies]
  anyhow = "1.0.93"
  clap = { version = "~4.5.23", features = ["derive", "env"] }
