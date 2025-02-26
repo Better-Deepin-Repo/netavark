@@ -1,0 +1,304 @@
+From: Reinhard Tartler <siretart@tauware.de>
+Date: Wed, 26 Feb 2025 09:22:35 -0500
+Subject: Revert "fix(deps): update rust crate rand to 0.9.0"
+
+This reverts commit 6f0bc1d16462ed35e10f96dfdd8e1814262960f3 to
+allow compilation with rand we have in unstable
+---
+ Cargo.lock                   | 73 +++++++-------------------------------------
+ Cargo.toml                   |  6 ++--
+ src/dhcp_proxy/cache.rs      | 30 +++++++++---------
+ src/dhcp_proxy/proxy_conf.rs |  6 ++--
+ src/network/vlan.rs          |  4 +--
+ 5 files changed, 34 insertions(+), 85 deletions(-)
+
+diff --git a/Cargo.lock b/Cargo.lock
+index 53dc7af..019bafe 100644
+--- a/Cargo.lock
++++ b/Cargo.lock
+@@ -533,7 +533,7 @@ dependencies = [
+  "dhcproto-macros",
+  "hex",
+  "ipnet",
+- "rand 0.8.5",
++ "rand",
+  "thiserror 1.0.69",
+  "trust-dns-proto",
+  "url",
+@@ -1424,7 +1424,7 @@ dependencies = [
+  "log",
+  "nispor",
+  "nix 0.27.1",
+- "rand 0.8.5",
++ "rand",
+ ]
+ 
+ [[package]]
+@@ -1480,7 +1480,7 @@ dependencies = [
+  "nix 0.29.0",
+  "once_cell",
+  "prost",
+- "rand 0.9.0",
++ "rand",
+  "serde",
+  "serde-value",
+  "serde_json",
+@@ -1781,7 +1781,7 @@ version = "0.2.20"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "77957b295656769bb8ad2b6a6b09d897d94f05c41b069aede1fcdaa675eaea04"
+ dependencies = [
+- "zerocopy 0.7.35",
++ "zerocopy",
+ ]
+ 
+ [[package]]
+@@ -1881,19 +1881,8 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "34af8d1a0e25924bc5b7c43c079c942339d8f0a8b57c39049bef581b46327404"
+ dependencies = [
+  "libc",
+- "rand_chacha 0.3.1",
+- "rand_core 0.6.4",
+-]
+-
+-[[package]]
+-name = "rand"
+-version = "0.9.0"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "3779b94aeb87e8bd4e834cee3650289ee9e0d5677f976ecdb6d219e5f4f6cd94"
+-dependencies = [
+- "rand_chacha 0.9.0",
+- "rand_core 0.9.0",
+- "zerocopy 0.8.17",
++ "rand_chacha",
++ "rand_core",
+ ]
+ 
+ [[package]]
+@@ -1903,17 +1892,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "e6c10a63a0fa32252be49d21e7709d4d4baf8d231c2dbce1eaa8141b9b127d88"
+ dependencies = [
+  "ppv-lite86",
+- "rand_core 0.6.4",
+-]
+-
+-[[package]]
+-name = "rand_chacha"
+-version = "0.9.0"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "d3022b5f1df60f26e1ffddd6c66e8aa15de382ae63b3a0c1bfc0e4d3e3f325cb"
+-dependencies = [
+- "ppv-lite86",
+- "rand_core 0.9.0",
++ "rand_core",
+ ]
+ 
+ [[package]]
+@@ -1925,16 +1904,6 @@ dependencies = [
+  "getrandom 0.2.15",
+ ]
+ 
+-[[package]]
+-name = "rand_core"
+-version = "0.9.0"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "b08f3c9802962f7e1b25113931d94f43ed9725bebc59db9d0c3e9a23b67e15ff"
+-dependencies = [
+- "getrandom 0.3.1",
+- "zerocopy 0.8.17",
+-]
+-
+ [[package]]
+ name = "regex"
+ version = "1.11.1"
+@@ -2452,7 +2421,7 @@ dependencies = [
+  "indexmap 1.9.3",
+  "pin-project",
+  "pin-project-lite",
+- "rand 0.8.5",
++ "rand",
+  "slab",
+  "tokio",
+  "tokio-util",
+@@ -2534,7 +2503,7 @@ dependencies = [
+  "idna 0.2.3",
+  "ipnet",
+  "lazy_static",
+- "rand 0.8.5",
++ "rand",
+  "smallvec",
+  "thiserror 1.0.69",
+  "tinyvec",
+@@ -2945,7 +2914,7 @@ dependencies = [
+  "hex",
+  "nix 0.29.0",
+  "ordered-stream",
+- "rand 0.8.5",
++ "rand",
+  "serde",
+  "serde_repr",
+  "sha1",
+@@ -2990,16 +2959,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "1b9b4fd18abc82b8136838da5d50bae7bdea537c574d8dc1a34ed098d6c166f0"
+ dependencies = [
+  "byteorder",
+- "zerocopy-derive 0.7.35",
+-]
+-
+-[[package]]
+-name = "zerocopy"
+-version = "0.8.17"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "aa91407dacce3a68c56de03abe2760159582b846c6a4acd2f456618087f12713"
+-dependencies = [
+- "zerocopy-derive 0.8.17",
++ "zerocopy-derive",
+ ]
+ 
+ [[package]]
+@@ -3013,17 +2973,6 @@ dependencies = [
+  "syn 2.0.98",
+ ]
+ 
+-[[package]]
+-name = "zerocopy-derive"
+-version = "0.8.17"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "06718a168365cad3d5ff0bb133aad346959a2074bd4a85c121255a11304a8626"
+-dependencies = [
+- "proc-macro2",
+- "quote",
+- "syn 2.0.98",
+-]
+-
+ [[package]]
+ name = "zerofrom"
+ version = "0.1.5"
+diff --git a/Cargo.toml b/Cargo.toml
+index b7b565a..f100441 100644
+--- a/Cargo.toml
++++ b/Cargo.toml
+@@ -45,7 +45,7 @@ sysctl = "0.6.0"
+ url = "2.5.3"
+ zbus = { version = "4.3.1" }
+ nix = { version = "0.29.0", features = ["sched", "signal", "user"] }
+-rand = "0.9.0"
++rand = "0.8.5"
+ sha2 = "0.10.8"
+ netlink-packet-utils = "0.5.2"
+ netlink-packet-route = "0.21.0"
+@@ -70,6 +70,6 @@ chrono = { version = "0.4.39", default-features = false, features = ["clock"] }
+ tonic-build = "0.11"
+ 
+ [dev-dependencies]
+-once_cell = "1.20.3"
+-rand = "0.9.0"
++once_cell = "1.20.2"
++rand = "0.8.5"
+ tempfile = "3.16.0"
+diff --git a/src/dhcp_proxy/cache.rs b/src/dhcp_proxy/cache.rs
+index 1ea74ca..6d3c6cf 100644
+--- a/src/dhcp_proxy/cache.rs
++++ b/src/dhcp_proxy/cache.rs
+@@ -176,31 +176,31 @@ mod cache_tests {
+     use super::super::cache::LeaseCache;
+     use super::super::lib::g_rpc::{Lease as NetavarkLease, Lease};
+     use crate::network::core_utils;
+-    use rand::{rng, Rng};
++    use rand::{thread_rng, Rng};
+     use std::collections::HashMap;
+     use std::io::Cursor;
+ 
+     // Create a single random ipv4 addr
+     fn random_ipv4() -> String {
+-        let mut rng = rng();
++        let mut rng = thread_rng();
+         format!(
+             "{:?}.{:?}.{:?}.{:?}.",
+-            rng.random_range(0..255),
+-            rng.random_range(0..255),
+-            rng.random_range(0..255),
+-            rng.random_range(0..255)
++            rng.gen_range(0..255),
++            rng.gen_range(0..255),
++            rng.gen_range(0..255),
++            rng.gen_range(0..255)
+         )
+     }
+     // Create a single random mac address
+     fn random_macaddr() -> String {
+-        let mut rng = rng();
++        let mut rng = thread_rng();
+         let bytes = vec![
+-            rng.random::<u8>(),
+-            rng.random::<u8>(),
+-            rng.random::<u8>(),
+-            rng.random::<u8>(),
+-            rng.random::<u8>(),
+-            rng.random::<u8>(),
++            rng.gen::<u8>(),
++            rng.gen::<u8>(),
++            rng.gen::<u8>(),
++            rng.gen::<u8>(),
++            rng.gen::<u8>(),
++            rng.gen::<u8>(),
+         ];
+         core_utils::CoreUtils::encode_address_to_hex(&bytes)
+     }
+@@ -243,9 +243,9 @@ mod cache_tests {
+ 
+             // Create a random amount of randomized leases
+             let macaddrs = Vec::new();
+-            let mut rng = rng();
++            let mut rng = thread_rng();
+             // Make a random amount of leases
+-            let range: u8 = rng.random_range(0..10);
++            let range: u8 = rng.gen_range(0..10);
+ 
+             CacheTestSetup {
+                 cache,
+diff --git a/src/dhcp_proxy/proxy_conf.rs b/src/dhcp_proxy/proxy_conf.rs
+index d92c235..7923711 100644
+--- a/src/dhcp_proxy/proxy_conf.rs
++++ b/src/dhcp_proxy/proxy_conf.rs
+@@ -110,8 +110,8 @@ mod conf_tests {
+     use std::sync::Mutex;
+ 
+     use once_cell::sync::Lazy;
+-    use rand::distr::Alphanumeric;
+-    use rand::{rng, Rng};
++    use rand::distributions::Alphanumeric;
++    use rand::{thread_rng, Rng};
+ 
+     /// Make sure that the environment isn't modified concurrently.
+     static SERIAL_TEST: Lazy<Mutex<()>> = Lazy::new(Default::default);
+@@ -207,7 +207,7 @@ mod conf_tests {
+     }
+ 
+     fn random_string(len: usize) -> String {
+-        let rand_string: String = rng()
++        let rand_string: String = thread_rng()
+             .sample_iter(&Alphanumeric)
+             .take(len)
+             .map(char::from)
+diff --git a/src/network/vlan.rs b/src/network/vlan.rs
+index ae93404..2ac4f43 100644
+--- a/src/network/vlan.rs
++++ b/src/network/vlan.rs
+@@ -5,7 +5,7 @@ use std::{collections::HashMap, net::IpAddr};
+ use netlink_packet_route::link::{
+     InfoData, InfoIpVlan, InfoKind, InfoMacVlan, IpVlanMode, LinkAttribute, MacVlanMode,
+ };
+-use rand::distr::{Alphanumeric, SampleString};
++use rand::distributions::{Alphanumeric, DistString};
+ 
+ use crate::network::dhcp::{dhcp_teardown, get_dhcp_lease};
+ use crate::{
+@@ -290,7 +290,7 @@ fn setup(
+ 
+             Err(err) => match err {
+                 NetavarkError::Netlink(ref e) if -e.raw_code() == libc::EEXIST => {
+-                    let random = Alphanumeric.sample_string(&mut rand::rng(), 10);
++                    let random = Alphanumeric.sample_string(&mut rand::thread_rng(), 10);
+                     let tmp_name = "mv-".to_string() + &random;
+                     let mut opts = opts.clone();
+                     opts.name.clone_from(&tmp_name);

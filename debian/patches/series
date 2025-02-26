@@ -6,3 +6,4 @@
 0012-relax-tokio-stream-dependency.patch
 0013-Relax-nispor-dependency.patch
 0008-Revert-update-tonic-and-prost-dependencies.patch
+0009-Revert-fix-deps-update-rust-crate-rand-to-0.9.0.patch
