@@ -1,0 +1,23 @@
+From: Reinhard Tartler <siretart@tauware.de>
+Date: Thu, 27 Feb 2025 12:13:51 -0500
+Subject: Revert "update tower to v0.5.1"
+
+This reverts commit 97d56bb081ddd4f018af6bf9de4029878ec3dacb to allow
+building with the version we have in unstable
+---
+ Cargo.toml | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/Cargo.toml b/Cargo.toml
+index 72f8476..7f451f4 100644
+--- a/Cargo.toml
++++ b/Cargo.toml
+@@ -62,7 +62,7 @@ futures-channel = "0.3.31"
+ futures-core = "0.3.31"
+ futures-util = "0.3.31"
+ nispor = { version = ">= 1.2" }
+-tower = { version = "0.5.2", features = ["util"] }
++tower = { version = "0.4.13" }
+ hyper-util = "0.1.10"
+ 
+ [build-dependencies]
