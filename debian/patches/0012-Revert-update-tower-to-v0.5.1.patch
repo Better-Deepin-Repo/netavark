@@ -9,7 +9,7 @@ building with the version we have in unstable
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/Cargo.toml b/Cargo.toml
-index 72f8476..7f451f4 100644
+index 7d238b0..f504e53 100644
 --- a/Cargo.toml
 +++ b/Cargo.toml
 @@ -62,7 +62,7 @@ futures-channel = "0.3.31"

@@ -10,7 +10,7 @@ Subject: [PATCH] Bump zbus dependency to v5
  4 files changed, 16 insertions(+), 8 deletions(-)
 
 diff --git a/Cargo.toml b/Cargo.toml
-index 92f0695..304f4eb 100644
+index 48b5d25..021d3d0 100644
 --- a/Cargo.toml
 +++ b/Cargo.toml
 @@ -43,7 +43,7 @@ serde-value = "0.7.0"
