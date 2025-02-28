@@ -10,3 +10,4 @@
 0010-Revert-fix-deps-update-rust-crate-sysctl-to-0.6.0.patch
 0011-Revert-Update-Rust-crate-tonic-to-0.11.patch
 0012-Revert-update-tower-to-v0.5.1.patch
+0013-Build-against-url-2.5.2.patch
