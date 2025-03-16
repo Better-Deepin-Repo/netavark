@@ -56,7 +56,7 @@ Package: netavark
 Architecture: any
 Depends: ${misc:Depends}, ${shlibs:Depends}
 Provides: container-network-stack (= 2)
-Recommends: aardvark-dns
+Recommends: aardvark-dns, nftables
 Breaks: aardvark-dns (<< 1.12)
 Enhances: podman
 Description: Rust based network stack for containers
