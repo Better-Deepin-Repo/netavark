@@ -9,10 +9,10 @@ This reverts commit dccb834a7c4a9ad3e716f18653e4da9f8e12a9a8.
  2 files changed, 3 insertions(+), 3 deletions(-)
 
 diff --git a/Cargo.lock b/Cargo.lock
-index 019bafe..a4ab136 100644
+index b83343c..2919177 100644
 --- a/Cargo.lock
 +++ b/Cargo.lock
-@@ -2200,9 +2200,9 @@ dependencies = [
+@@ -2171,9 +2171,9 @@ dependencies = [
  
  [[package]]
  name = "sysctl"
@@ -22,10 +22,10 @@ index 019bafe..a4ab136 100644
 -checksum = "01198a2debb237c62b6826ec7081082d951f46dbb64b0e8c7649a452230d1dfc"
 +checksum = "ec7dddc5f0fee506baf8b9fdb989e242f17e4b11c61dfbb0635b705217199eea"
  dependencies = [
-  "bitflags 2.8.0",
+  "bitflags",
   "byteorder",
 diff --git a/Cargo.toml b/Cargo.toml
-index f100441..ccc3978 100644
+index 48b477a..119d9ab 100644
 --- a/Cargo.toml
 +++ b/Cargo.toml
 @@ -41,7 +41,7 @@ log = "0.4.24"

@@ -8,7 +8,7 @@ this is to avoid a dependency on newer idna
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/Cargo.toml b/Cargo.toml
-index f504e53..48b5d25 100644
+index 28b6097..69f1f87 100644
 --- a/Cargo.toml
 +++ b/Cargo.toml
 @@ -42,7 +42,7 @@ serde = { version = "1.0.213", features = ["derive"], optional = true }

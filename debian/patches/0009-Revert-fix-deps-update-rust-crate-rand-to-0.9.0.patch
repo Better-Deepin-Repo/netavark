@@ -13,10 +13,10 @@ allow compilation with rand we have in unstable
  5 files changed, 34 insertions(+), 85 deletions(-)
 
 diff --git a/Cargo.lock b/Cargo.lock
-index 53dc7af..019bafe 100644
+index 969a288..b83343c 100644
 --- a/Cargo.lock
 +++ b/Cargo.lock
-@@ -533,7 +533,7 @@ dependencies = [
+@@ -529,7 +529,7 @@ dependencies = [
   "dhcproto-macros",
   "hex",
   "ipnet",
@@ -25,7 +25,7 @@ index 53dc7af..019bafe 100644
   "thiserror 1.0.69",
   "trust-dns-proto",
   "url",
-@@ -1424,7 +1424,7 @@ dependencies = [
+@@ -1402,7 +1402,7 @@ dependencies = [
   "log",
   "nispor",
   "nix 0.27.1",
@@ -34,7 +34,7 @@ index 53dc7af..019bafe 100644
  ]
  
  [[package]]
-@@ -1480,7 +1480,7 @@ dependencies = [
+@@ -1458,7 +1458,7 @@ dependencies = [
   "nix 0.29.0",
   "once_cell",
   "prost",
@@ -43,7 +43,7 @@ index 53dc7af..019bafe 100644
   "serde",
   "serde-value",
   "serde_json",
-@@ -1781,7 +1781,7 @@ version = "0.2.20"
+@@ -1759,7 +1759,7 @@ version = "0.2.20"
  source = "registry+https://github.com/rust-lang/crates.io-index"
  checksum = "77957b295656769bb8ad2b6a6b09d897d94f05c41b069aede1fcdaa675eaea04"
  dependencies = [
@@ -52,7 +52,7 @@ index 53dc7af..019bafe 100644
  ]
  
  [[package]]
-@@ -1881,19 +1881,8 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
+@@ -1858,19 +1858,8 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
  checksum = "34af8d1a0e25924bc5b7c43c079c942339d8f0a8b57c39049bef581b46327404"
  dependencies = [
   "libc",
@@ -74,7 +74,7 @@ index 53dc7af..019bafe 100644
  ]
  
  [[package]]
-@@ -1903,17 +1892,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
+@@ -1880,17 +1869,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
  checksum = "e6c10a63a0fa32252be49d21e7709d4d4baf8d231c2dbce1eaa8141b9b127d88"
  dependencies = [
   "ppv-lite86",
@@ -93,7 +93,7 @@ index 53dc7af..019bafe 100644
  ]
  
  [[package]]
-@@ -1925,16 +1904,6 @@ dependencies = [
+@@ -1902,16 +1881,6 @@ dependencies = [
   "getrandom 0.2.15",
  ]
  
@@ -110,7 +110,7 @@ index 53dc7af..019bafe 100644
  [[package]]
  name = "regex"
  version = "1.11.1"
-@@ -2452,7 +2421,7 @@ dependencies = [
+@@ -2417,7 +2386,7 @@ dependencies = [
   "indexmap 1.9.3",
   "pin-project",
   "pin-project-lite",
@@ -119,7 +119,7 @@ index 53dc7af..019bafe 100644
   "slab",
   "tokio",
   "tokio-util",
-@@ -2534,7 +2503,7 @@ dependencies = [
+@@ -2499,7 +2468,7 @@ dependencies = [
   "idna 0.2.3",
   "ipnet",
   "lazy_static",
@@ -128,7 +128,7 @@ index 53dc7af..019bafe 100644
   "smallvec",
   "thiserror 1.0.69",
   "tinyvec",
-@@ -2945,7 +2914,7 @@ dependencies = [
+@@ -2910,7 +2879,7 @@ dependencies = [
   "hex",
   "nix 0.29.0",
   "ordered-stream",
@@ -137,7 +137,7 @@ index 53dc7af..019bafe 100644
   "serde",
   "serde_repr",
   "sha1",
-@@ -2990,16 +2959,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
+@@ -2955,16 +2924,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
  checksum = "1b9b4fd18abc82b8136838da5d50bae7bdea537c574d8dc1a34ed098d6c166f0"
  dependencies = [
   "byteorder",
@@ -155,7 +155,7 @@ index 53dc7af..019bafe 100644
  ]
  
  [[package]]
-@@ -3013,17 +2973,6 @@ dependencies = [
+@@ -2978,17 +2938,6 @@ dependencies = [
   "syn 2.0.98",
  ]
  
@@ -174,7 +174,7 @@ index 53dc7af..019bafe 100644
  name = "zerofrom"
  version = "0.1.5"
 diff --git a/Cargo.toml b/Cargo.toml
-index b7b565a..f100441 100644
+index 25cc115..48b477a 100644
 --- a/Cargo.toml
 +++ b/Cargo.toml
 @@ -45,7 +45,7 @@ sysctl = "0.6.0"
@@ -187,7 +187,7 @@ index b7b565a..f100441 100644
  netlink-packet-utils = "0.5.2"
  netlink-packet-route = "0.21.0"
 @@ -70,6 +70,6 @@ chrono = { version = "0.4.39", default-features = false, features = ["clock"] }
- tonic-build = "0.11"
+ tonic-build = "0.12.3"
  
  [dev-dependencies]
 -once_cell = "1.20.3"
