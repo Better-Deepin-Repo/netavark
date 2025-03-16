@@ -1,3 +1,10 @@
+netavark (1.14.0-2) unstable; urgency=medium
+
+  * Delete patches no longer necessary
+  * Bump Standards Version
+
+ -- Reinhard Tartler <siretart@tauware.de>  Sun, 16 Mar 2025 16:40:52 -0400
+
 netavark (1.14.0-1) experimental; urgency=medium
 
   * New upstream release
