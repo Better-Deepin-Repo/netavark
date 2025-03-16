@@ -1,6 +1,8 @@
 netavark (1.14.0-1) experimental; urgency=medium
 
-  * New upstream relesae
+  * New upstream release
+    - Builds against zbus v5, Closes: #1093690, #1099897
+  * Default to nftables, again. Closes: #1091318
 
  -- Reinhard Tartler <siretart@tauware.de>  Mon, 17 Feb 2025 13:45:43 -0500
 
