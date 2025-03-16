@@ -9,12 +9,12 @@ Subject: [PATCH] Bump zbus dependency to v5
  src/firewall/firewalld.rs        | 12 ++++++------
  4 files changed, 16 insertions(+), 8 deletions(-)
 
-diff --git a/Cargo.toml b/Cargo.toml
-index 69f1f87..01b0de1 100644
---- a/Cargo.toml
-+++ b/Cargo.toml
+Index: netavark/Cargo.toml
+===================================================================
+--- netavark.orig/Cargo.toml
++++ netavark/Cargo.toml
 @@ -43,7 +43,7 @@ serde-value = "0.7.0"
- serde_json = { version = ">= 1.0" }
+ serde_json = "1.0.136"
  sysctl = "0.5.5"
  url = "2.5.2"
 -zbus = { version = "4.3.1" }
@@ -22,10 +22,10 @@ index 69f1f87..01b0de1 100644
  nix = { version = "0.29.0", features = ["sched", "signal", "user"] }
  rand = "0.8.5"
  sha2 = "0.10.8"
-diff --git a/src/commands/firewalld_reload.rs b/src/commands/firewalld_reload.rs
-index f17b4d5..4c2e476 100644
---- a/src/commands/firewalld_reload.rs
-+++ b/src/commands/firewalld_reload.rs
+Index: netavark/src/commands/firewalld_reload.rs
+===================================================================
+--- netavark.orig/src/commands/firewalld_reload.rs
++++ netavark/src/commands/firewalld_reload.rs
 @@ -3,7 +3,7 @@ use std::{
      path::Path,
  };
@@ -35,11 +35,11 @@ index f17b4d5..4c2e476 100644
  
  use crate::{
      error::{ErrorWrap, NetavarkResult},
-diff --git a/src/error/mod.rs b/src/error/mod.rs
-index bb6bbb6..0f0772d 100644
---- a/src/error/mod.rs
-+++ b/src/error/mod.rs
-@@ -192,6 +192,14 @@ impl From<zbus::zvariant::Error> for NetavarkError {
+Index: netavark/src/error/mod.rs
+===================================================================
+--- netavark.orig/src/error/mod.rs
++++ netavark/src/error/mod.rs
+@@ -192,6 +192,14 @@ impl From<zbus::zvariant::Error> for Net
      }
  }
  
@@ -54,11 +54,11 @@ index bb6bbb6..0f0772d 100644
  impl From<sysctl::SysctlError> for NetavarkError {
      fn from(err: sysctl::SysctlError) -> NetavarkError {
          NetavarkError::Sysctl(err)
-diff --git a/src/firewall/firewalld.rs b/src/firewall/firewalld.rs
-index bfcbb43..54be64b 100644
---- a/src/firewall/firewalld.rs
-+++ b/src/firewall/firewalld.rs
-@@ -191,9 +191,9 @@ impl firewall::FirewallDriver for FirewallD {
+Index: netavark/src/firewall/firewalld.rs
+===================================================================
+--- netavark.orig/src/firewall/firewalld.rs
++++ netavark/src/firewall/firewalld.rs
+@@ -191,9 +191,9 @@ impl firewall::FirewallDriver for Firewa
                  ))
              }
          };
@@ -71,7 +71,7 @@ index bfcbb43..54be64b 100644
  
          // Create any necessary port forwarding rule(s) and add them to the
          // policy config we grabbed above.
-@@ -408,7 +408,7 @@ impl firewall::FirewallDriver for FirewallD {
+@@ -408,7 +408,7 @@ impl firewall::FirewallDriver for Firewa
                      ))
                  }
              };
@@ -80,7 +80,7 @@ index bfcbb43..54be64b 100644
  
              let ipv4 = teardown_pf.config.container_ip_v4.map(|i| i.to_string());
              let ipv6 = teardown_pf.config.container_ip_v6.map(|i| i.to_string());
-@@ -481,7 +481,7 @@ impl firewall::FirewallDriver for FirewallD {
+@@ -481,7 +481,7 @@ impl firewall::FirewallDriver for Firewa
                      ))
                  }
              };
@@ -89,7 +89,7 @@ index bfcbb43..54be64b 100644
  
              let ipv4 = teardown_pf.config.container_ip_v4.map(|i| i.to_string());
              let ipv6 = teardown_pf.config.container_ip_v6.map(|i| i.to_string());
-@@ -564,7 +564,7 @@ impl firewall::FirewallDriver for FirewallD {
+@@ -564,7 +564,7 @@ impl firewall::FirewallDriver for Firewa
                      ))
                  }
              };

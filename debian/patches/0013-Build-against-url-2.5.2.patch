@@ -7,13 +7,13 @@ this is to avoid a dependency on newer idna
  Cargo.toml | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
 
-diff --git a/Cargo.toml b/Cargo.toml
-index 28b6097..69f1f87 100644
---- a/Cargo.toml
-+++ b/Cargo.toml
-@@ -42,7 +42,7 @@ serde = { version = "1.0.213", features = ["derive"], optional = true }
+Index: netavark/Cargo.toml
+===================================================================
+--- netavark.orig/Cargo.toml
++++ netavark/Cargo.toml
+@@ -42,7 +42,7 @@ serde = { version = "1.0.213", features
  serde-value = "0.7.0"
- serde_json = { version = ">= 1.0" }
+ serde_json = "1.0.136"
  sysctl = "0.5.5"
 -url = "2.5.3"
 +url = "2.5.2"

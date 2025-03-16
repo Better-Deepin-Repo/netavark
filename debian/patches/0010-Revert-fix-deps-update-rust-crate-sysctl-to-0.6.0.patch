@@ -8,10 +8,10 @@ This reverts commit dccb834a7c4a9ad3e716f18653e4da9f8e12a9a8.
  Cargo.toml | 2 +-
  2 files changed, 3 insertions(+), 3 deletions(-)
 
-diff --git a/Cargo.lock b/Cargo.lock
-index b83343c..2919177 100644
---- a/Cargo.lock
-+++ b/Cargo.lock
+Index: netavark/Cargo.lock
+===================================================================
+--- netavark.orig/Cargo.lock
++++ netavark/Cargo.lock
 @@ -2171,9 +2171,9 @@ dependencies = [
  
  [[package]]
@@ -24,14 +24,14 @@ index b83343c..2919177 100644
  dependencies = [
   "bitflags",
   "byteorder",
-diff --git a/Cargo.toml b/Cargo.toml
-index 48b477a..119d9ab 100644
---- a/Cargo.toml
-+++ b/Cargo.toml
+Index: netavark/Cargo.toml
+===================================================================
+--- netavark.orig/Cargo.toml
++++ netavark/Cargo.toml
 @@ -41,7 +41,7 @@ log = "0.4.24"
  serde = { version = "1.0.213", features = ["derive"], optional = true }
  serde-value = "0.7.0"
- serde_json = { version = ">= 1.0" }
+ serde_json = "1.0.136"
 -sysctl = "0.6.0"
 +sysctl = "0.5.5"
  url = "2.5.3"

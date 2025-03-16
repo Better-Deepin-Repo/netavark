@@ -1,13 +1,9 @@
 0001-relax-test.patch
 0002-Allow-netavark-to-find-aardvark-dns-by-default.patch
-0007-Relax-env_logger-dependency.patch
-0008-relax-clap-dependency.patch
-0010-relax-serde-json-dependency.patch
 0012-relax-tokio-stream-dependency.patch
 0013-Relax-nispor-dependency.patch
 0009-Revert-fix-deps-update-rust-crate-rand-to-0.9.0.patch
 0010-Revert-fix-deps-update-rust-crate-sysctl-to-0.6.0.patch
-0012-Revert-update-tower-to-v0.5.1.patch
 0013-Build-against-url-2.5.2.patch
 0015-update-zbus.patch
 0013-compile-against-prost-12.6.patch

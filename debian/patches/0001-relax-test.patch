@@ -8,10 +8,10 @@ which is not the case for the Debian build.
  test/001-basic.bats | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
 
-diff --git a/test/001-basic.bats b/test/001-basic.bats
-index bc30a17..20e0a3b 100644
---- a/test/001-basic.bats
-+++ b/test/001-basic.bats
+Index: netavark/test/001-basic.bats
+===================================================================
+--- netavark.orig/test/001-basic.bats
++++ netavark/test/001-basic.bats
 @@ -12,7 +12,7 @@ load helpers
      run_netavark version
      json="$output"

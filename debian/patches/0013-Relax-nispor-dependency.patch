@@ -6,10 +6,10 @@ Subject: Relax nispor dependency
  Cargo.toml | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
 
-diff --git a/Cargo.toml b/Cargo.toml
-index 57c2d39..25cc115 100644
---- a/Cargo.toml
-+++ b/Cargo.toml
+Index: netavark/Cargo.toml
+===================================================================
+--- netavark.orig/Cargo.toml
++++ netavark/Cargo.toml
 @@ -61,7 +61,7 @@ prost = "0.13.4"
  futures-channel = "0.3.31"
  futures-core = "0.3.31"
