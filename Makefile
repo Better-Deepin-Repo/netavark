@@ -19,8 +19,8 @@ GIT_TAG ?= $(shell git describe --tags)
 # build w/ debugging features.
 debug ?=
 
-# Set path to cargo executable
-CARGO ?= cargo
+# Set path to cargo executable, when running under CI make sure to add --locked so Cargo.lock is not modified
+CARGO ?= cargo $(if $(CI),--locked,)
 
 # All complication artifacts, including dependencies and intermediates
 # will be stored here, for all architectures.  Use a non-default name
@@ -28,6 +28,8 @@ CARGO ?= cargo
 # places in the tool-chain (including 'make' itself).
 CARGO_TARGET_DIR ?= targets
 export CARGO_TARGET_DIR  # 'cargo' is sensitive to this env. var. value.
+
+SOURCES = $(shell find src/ -type f) Cargo.toml Cargo.lock Makefile
 
 ifdef debug
 $(info debug is $(debug))
@@ -41,7 +43,7 @@ else
 endif
 
 .PHONY: all
-all: build
+all: build docs
 
 bin:
 	mkdir -p $@
@@ -50,12 +52,14 @@ $(CARGO_TARGET_DIR):
 	mkdir -p $@
 
 .PHONY: build
-build: build_netavark build_proxy_client
+build: bin/netavark
 
-.PHONY: build_netavark
-build_netavark: bin $(CARGO_TARGET_DIR)
+bin/netavark: $(SOURCES) bin $(CARGO_TARGET_DIR)
 	$(CARGO) build $(release)
-	cp $(CARGO_TARGET_DIR)/$(profile)/netavark bin/netavark$(if $(debug),.debug,)
+	cp $(CARGO_TARGET_DIR)/$(profile)/netavark bin/netavark
+	cp $(CARGO_TARGET_DIR)/$(profile)/netavark-dhcp-proxy-client bin/netavark-dhcp-proxy-client
+	cp $(CARGO_TARGET_DIR)/$(profile)/netavark-connection-tester bin/netavark-connection-tester
+
 
 .PHONY: examples
 examples: bin $(CARGO_TARGET_DIR)
@@ -74,6 +78,7 @@ crate-publish:
 .PHONY: clean
 clean:
 	rm -rf bin
+	rm -rf vendor-tarball
 	if [ "$(CARGO_TARGET_DIR)" = "targets" ]; then rm -rf targets; fi
 	$(MAKE) -C docs clean
 
@@ -104,10 +109,12 @@ install: $(NV_UNIT_FILES)
 
 .PHONY: uninstall
 uninstall:
+	$(MAKE) -C docs uninstall
 	rm -f $(DESTDIR)$(LIBEXECPODMAN)/netavark
 	rm -f $(PREFIX)/share/man/man1/netavark*.1
 	rm -f ${DESTDIR}${SYSTEMDDIR}/netavark-dhcp-proxy.service
 	rm -f ${DESTDIR}${SYSTEMDDIR}/netavark-dhcp-proxy.socket
+	rm -f ${DESTDIR}${SYSTEMDDIR}/netavark-firewalld-reload.service
 
 .PHONY: test
 test: unit integration
@@ -137,8 +144,10 @@ validate: $(CARGO_TARGET_DIR)
 vendor-tarball: build install.cargo-vendor-filterer
 	VERSION=$(shell bin/netavark --version | cut -f2 -d" ") && \
 	$(CARGO) vendor-filterer --format=tar.gz --prefix vendor/ && \
-	mv vendor.tar.gz netavark-v$$VERSION-vendor.tar.gz && \
-	gzip -c bin/netavark > netavark.gz && \
+	mkdir -p vendor-tarball && \
+	mv vendor.tar.gz vendor-tarball/netavark-v$$VERSION-vendor.tar.gz && \
+	gzip -c bin/netavark > vendor-tarball/netavark.gz && \
+	cd vendor-tarball && \
 	sha256sum netavark.gz netavark-v$$VERSION-vendor.tar.gz > sha256sum
 
 .PHONY: install.cargo-vendor-filterer
@@ -152,8 +161,3 @@ mock-rpm:
 .PHONY: help
 help:
 	@echo "usage: make $(prog) [debug=1]"
-
-.PHONY: build_proxy_client
-build_proxy_client: bin $(CARGO_TARGET_DIR)
-	$(CARGO) build --bin netavark-dhcp-proxy-client $(release)
-	cp $(CARGO_TARGET_DIR)/$(profile)/netavark-dhcp-proxy-client bin/netavark-dhcp-proxy-client$(if $(debug),.debug,)

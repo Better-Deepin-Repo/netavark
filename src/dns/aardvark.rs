@@ -1,4 +1,5 @@
 use crate::error::{NetavarkError, NetavarkResult};
+use crate::network::core_utils::is_using_systemd;
 
 use fs2::FileExt;
 use libc::pid_t;
@@ -8,26 +9,49 @@ use std::ffi::{OsStr, OsString};
 use std::fs;
 use std::fs::File;
 use std::fs::OpenOptions;
+use std::io::ErrorKind;
 use std::io::Result;
-use std::io::{prelude::*, ErrorKind};
+use std::io::Write;
 use std::net::Ipv4Addr;
 use std::net::{IpAddr, Ipv6Addr};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 
-const SYSTEMD_CHECK_PATH: &str = "/run/systemd/system";
 const SYSTEMD_RUN: &str = "systemd-run";
 const AARDVARK_COMMIT_LOCK: &str = "aardvark.lock";
 
-#[derive(Clone, Debug)]
+/// For better safety we wrap &str in our own custom type here
+/// where we can enforce that the caller can only construct it
+/// via the TryFrom trait. With that we can guarantee via the
+/// type system that we never get invalid chars here when we
+/// write the config file.
+#[derive(Debug)]
+pub struct SafeString<'a>(&'a str);
+
+impl<'a> TryFrom<&'a str> for SafeString<'a> {
+    type Error = &'static str;
+
+    fn try_from(value: &'a str) -> std::result::Result<Self, Self::Error> {
+        if value.is_empty() {
+            return Err("name is empty");
+        }
+        if value.contains([',', '\n', ' ']) {
+            Err("name contains invalid chars")
+        } else {
+            Ok(SafeString(value))
+        }
+    }
+}
+
+#[derive(Debug)]
 pub struct AardvarkEntry<'a> {
     pub network_name: &'a str,
     pub network_gateways: Vec<IpAddr>,
     pub network_dns_servers: &'a Option<Vec<IpAddr>>,
-    pub container_id: &'a str,
+    pub container_id: SafeString<'a>,
     pub container_ips_v4: Vec<Ipv4Addr>,
     pub container_ips_v6: Vec<Ipv6Addr>,
-    pub container_names: Vec<String>,
+    pub container_names: Vec<SafeString<'a>>,
     pub container_dns_servers: &'a Option<Vec<IpAddr>>,
     pub is_internal: bool,
 }
@@ -84,12 +108,12 @@ impl Aardvark {
         false
     }
 
-    pub fn start_aardvark_server(&self) -> Result<()> {
+    pub fn start_aardvark_server(&self) -> NetavarkResult<()> {
         log::debug!("Spawning aardvark server");
 
         let mut aardvark_args = vec![];
-        // only use systemd when it is booted, see sd_booted(3)
-        if Path::new(SYSTEMD_CHECK_PATH).exists() && Aardvark::is_executable_in_path(SYSTEMD_RUN) {
+        // only use systemd when it is booted
+        if is_using_systemd() && Aardvark::is_executable_in_path(SYSTEMD_RUN) {
             // TODO: This could be replaced by systemd-api.
             aardvark_args = vec![
                 OsStr::new(SYSTEMD_RUN),
@@ -111,7 +135,7 @@ impl Aardvark {
             OsStr::new("run"),
         ]);
 
-        log::debug!("start aardvark-dns: {:?}", aardvark_args);
+        log::debug!("start aardvark-dns: {aardvark_args:?}");
 
         // After https://github.com/containers/aardvark-dns/pull/148 this command
         // will block till aardvark-dns's parent process returns back and let
@@ -128,23 +152,19 @@ impl Aardvark {
             return Ok(());
         }
         if out.stderr.is_empty() {
-            return Err(std::io::Error::new(
-                std::io::ErrorKind::Other,
+            return Err(NetavarkError::msg(
                 "aardvark-dns exited unexpectedly without error message",
             ));
         }
         // aardvark-dns failed capture stderr
         let msg = String::from_utf8(out.stderr).map_err(|e| {
-            std::io::Error::new(
-                std::io::ErrorKind::Other,
-                format!("failed to parse aardvark-dns stderr message: {e}"),
-            )
+            NetavarkError::msg(format!("failed to parse aardvark-dns stderr message: {e}"))
         })?;
 
-        Err(std::io::Error::new(
-            std::io::ErrorKind::Other,
-            format!("aardvark-dns failed to start: {}", msg.trim()),
-        ))
+        Err(NetavarkError::msg(format!(
+            "aardvark-dns failed to start: {}",
+            msg.trim()
+        )))
     }
 
     fn check_netns(&self, pid: pid_t) {
@@ -211,7 +231,7 @@ impl Aardvark {
         Ok(())
     }
 
-    pub fn commit_entries(&self, entries: &[AardvarkEntry]) -> Result<()> {
+    pub fn commit_entries(&self, entries: &[AardvarkEntry]) -> NetavarkResult<()> {
         // Acquire fs lock to ensure other instance of aardvark cannot commit
         // or start aardvark instance till already running instance has not
         // completed its `commit` phase.
@@ -227,17 +247,16 @@ impl Aardvark {
         {
             Ok(file) => file,
             Err(e) => {
-                return Err(std::io::Error::new(
-                    std::io::ErrorKind::Other,
-                    format!("Failed to open/create lockfile {:?}: {}", &lockfile_path, e),
-                ));
+                return Err(NetavarkError::msg(format!(
+                    "Failed to open/create lockfile {:?}: {}",
+                    &lockfile_path, e
+                )));
             }
         };
         if let Err(er) = lockfile.lock_exclusive() {
-            return Err(std::io::Error::new(
-                std::io::ErrorKind::Other,
-                format!("Failed to acquire exclusive lock on {lockfile_path:?}: {er}"),
-            ));
+            return Err(NetavarkError::msg(format!(
+                "Failed to acquire exclusive lock on {lockfile_path:?}: {er}"
+            )));
         }
 
         for entry in entries {
@@ -283,15 +302,14 @@ impl Aardvark {
                     OpenOptions::new().append(true).open(&path)?
                 }
                 Err(e) => {
-                    return Err(e);
+                    return Err(NetavarkError::Io(e));
                 }
             };
             match Aardvark::commit_entry(entry, file) {
                 Err(er) => {
-                    return Err(std::io::Error::new(
-                        std::io::ErrorKind::Other,
-                        format!("Failed to commit entry {entry:?}: {er}"),
-                    ));
+                    return Err(NetavarkError::msg(format!(
+                        "Failed to commit entry {entry:?}: {er}"
+                    )));
                 }
                 Ok(_) => continue,
             }
@@ -301,43 +319,36 @@ impl Aardvark {
     }
 
     fn commit_entry(entry: &AardvarkEntry, mut file: File) -> Result<()> {
-        let container_names = entry.container_names.join(",");
+        let mut buf = String::with_capacity(4096);
 
-        let ipv4s = entry
-            .container_ips_v4
-            .iter()
-            .map(|g| g.to_string())
-            .collect::<Vec<String>>()
-            .join(",");
+        // The line is space separated keys and then for the ips/names they are comma separated
+        // Format: ID ipv4s ipv6s names[ dns-servers]
+        buf.push_str(entry.container_id.0);
 
-        let ipv6s = entry
-            .container_ips_v6
-            .iter()
-            .map(|g| g.to_string())
-            .collect::<Vec<String>>()
-            .join(",");
-
-        let dns_server = if let Some(dns_servers) = &entry.container_dns_servers {
-            if !dns_servers.is_empty() {
-                let dns_server_collected = dns_servers
-                    .iter()
-                    .map(|g| g.to_string())
-                    .collect::<Vec<String>>()
-                    .join(",");
-                format!(" {dns_server_collected}")
-            } else {
-                "".to_string()
-            }
-        } else {
-            "".to_string()
-        };
-
-        let data = format!(
-            "{} {} {} {}{}\n",
-            entry.container_id, ipv4s, ipv6s, container_names, dns_server
+        buf.push(' ');
+        write_comma_separated_list(
+            &mut buf,
+            entry.container_ips_v4.iter().map(|g| g.to_string()),
         );
 
-        file.write_all(data.as_bytes())?; // return error if write fails
+        buf.push(' ');
+        write_comma_separated_list(
+            &mut buf,
+            entry.container_ips_v6.iter().map(|g| g.to_string()),
+        );
+
+        buf.push(' ');
+        write_comma_separated_list(&mut buf, entry.container_names.iter().map(|n| n.0));
+
+        if let Some(dns_servers) = &entry.container_dns_servers {
+            if !dns_servers.is_empty() {
+                buf.push(' ');
+                write_comma_separated_list(&mut buf, dns_servers.iter().map(|g| g.to_string()));
+            }
+        }
+        buf.push('\n');
+
+        file.write_all(buf.as_bytes())?; // return error if write fails
 
         Ok(())
     }
@@ -462,8 +473,25 @@ impl Aardvark {
 
     pub fn delete_from_netavark_entries(&self, entries: &[AardvarkEntry]) -> NetavarkResult<()> {
         for entry in entries {
-            self.delete_entry(entry.container_id, entry.network_name)?;
+            self.delete_entry(entry.container_id.0, entry.network_name)?;
         }
         self.notify(false, false)
+    }
+}
+
+fn write_comma_separated_list<I, T>(buf: &mut String, mut iter: I)
+where
+    T: AsRef<str>,
+    I: Iterator<Item = T>,
+{
+    // first one write without comma
+    match iter.next() {
+        Some(el) => buf.push_str(el.as_ref()),
+        None => return,
+    };
+
+    for el in iter {
+        buf.push(',');
+        buf.push_str(el.as_ref());
     }
 }
