@@ -1,0 +1,21 @@
+From: Reinhard Tartler <siretart@tauware.de>
+Date: Thu, 28 Aug 2025 15:59:53 -0400
+Subject: Relax dependency on clap
+
+---
+ Cargo.toml | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/Cargo.toml b/Cargo.toml
+index 14a6144..3aa6a1f 100644
+--- a/Cargo.toml
++++ b/Cargo.toml
+@@ -34,7 +34,7 @@ path = "src/test/main.rs"
+ # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+ [dependencies]
+ anyhow = "1.0.93"
+-clap = { version = "~4.5.42", features = ["derive", "env"] }
++clap = { version = "~4.5.23", features = ["derive", "env"] }
+ env_logger = "0.11.8"
+ ipnet = { version = "2.11.0", features = ["serde"] }
+ iptables = "0.5.2"
