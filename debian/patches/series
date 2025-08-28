@@ -2,3 +2,4 @@
 0010-Revert-fix-deps-update-rust-crate-sysctl-to-0.6.0.patch
 0013-compile-against-prost-12.6.patch
 0004-Relax-dependency-on-clap.patch
+0005-Relax-dependency-on-env_logger.patch
