@@ -4,14 +4,13 @@ Subject: Revert "fix(deps): update rust crate sysctl to 0.6.0"
 
 This reverts commit dccb834a7c4a9ad3e716f18653e4da9f8e12a9a8.
 ---
- Cargo.lock | 4 ++--
  Cargo.toml | 2 +-
- 2 files changed, 3 insertions(+), 3 deletions(-)
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-Index: netavark/Cargo.toml
-===================================================================
---- netavark.orig/Cargo.toml
-+++ netavark/Cargo.toml
+diff --git a/Cargo.toml b/Cargo.toml
+index 415f37c..d4bc5dc 100644
+--- a/Cargo.toml
++++ b/Cargo.toml
 @@ -48,7 +48,7 @@ rand = "0.9.2"
  sha2 = "0.10.9"
  netlink-packet-route = "0.23.0"

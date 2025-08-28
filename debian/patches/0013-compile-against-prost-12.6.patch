@@ -6,11 +6,11 @@ Subject: compile against prost 12.6
  Cargo.toml | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
 
-Index: netavark/Cargo.toml
-===================================================================
---- netavark.orig/Cargo.toml
-+++ netavark/Cargo.toml
-@@ -55,7 +55,7 @@ tokio = { version = "1.47.1", features =
+diff --git a/Cargo.toml b/Cargo.toml
+index d4bc5dc..14a6144 100644
+--- a/Cargo.toml
++++ b/Cargo.toml
+@@ -55,7 +55,7 @@ tokio = { version = "1.47.1", features = ["rt", "rt-multi-thread", "signal", "fs
  tokio-stream = { version = "0.1.17", features = ["net"] }
  tonic = "0.13.1"
  mozim = "0.2.6"
