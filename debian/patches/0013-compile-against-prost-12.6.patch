@@ -10,11 +10,11 @@ Index: netavark/Cargo.toml
 ===================================================================
 --- netavark.orig/Cargo.toml
 +++ netavark/Cargo.toml
-@@ -57,7 +57,7 @@ tokio = { version = "1.43.0", features =
- tokio-stream = { version = ">= 0.1.16", features = ["net"] }
- tonic = "0.12.3"
- mozim = "0.2.5"
--prost = "0.13.4"
+@@ -55,7 +55,7 @@ tokio = { version = "1.47.1", features =
+ tokio-stream = { version = "0.1.17", features = ["net"] }
+ tonic = "0.13.1"
+ mozim = "0.2.6"
+-prost = "0.13.5"
 +prost = "0.12.6"
  futures-channel = "0.3.31"
  futures-core = "0.3.31"
