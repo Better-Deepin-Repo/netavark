@@ -3,16 +3,18 @@ use std::os::fd::BorrowedFd;
 use std::{collections::HashMap, net::IpAddr};
 
 use netlink_packet_route::link::{
-    InfoData, InfoIpVlan, InfoKind, InfoMacVlan, IpVlanMode, LinkAttribute, MacVlanMode,
+    InfoData, InfoIpVlan, InfoKind, InfoMacVlan, IpVlanMode, MacVlanMode,
 };
 use rand::distr::{Alphanumeric, SampleString};
 
+use crate::network::core_utils::get_default_route_interface;
 use crate::network::dhcp::{dhcp_teardown, get_dhcp_lease};
 use crate::{
     dns::aardvark::AardvarkEntry,
     error::{ErrorWrap, NetavarkError, NetavarkResult},
     exec_netns,
-    network::core_utils::{disable_ipv6_autoconf, join_netns},
+    network::core_utils::join_netns,
+    network::sysctl::disable_ipv6_autoconf,
 };
 
 use super::{
@@ -144,7 +146,7 @@ impl driver::NetworkDriver for Vlan<'_> {
     fn setup(
         &self,
         netlink_sockets: (&mut netlink::Socket, &mut netlink::Socket),
-    ) -> Result<(StatusBlock, Option<AardvarkEntry>), NetavarkError> {
+    ) -> Result<(StatusBlock, Option<AardvarkEntry<'_>>), NetavarkError> {
         let data = match &self.data {
             Some(d) => d,
             None => return Err(NetavarkError::msg("must call validate() before setup()")),
@@ -241,12 +243,10 @@ fn setup(
     netns_fd: BorrowedFd<'_>,
     kind_data: &KindData,
 ) -> NetavarkResult<String> {
-    let primary_ifname = match data.host_interface_name.as_ref() {
+    let link = match data.host_interface_name.as_ref() {
         "" => get_default_route_interface(host)?,
-        host_name => host_name.to_string(),
+        host_name => host.get_link(netlink::LinkID::Name(host_name.to_string()))?,
     };
-
-    let link = host.get_link(netlink::LinkID::Name(primary_ifname))?;
 
     let opts = match kind_data {
         KindData::IpVlan { mode } => {
@@ -317,10 +317,7 @@ fn setup(
                             // make sure to delete the tmp interface.
                             if let Err(err) = netns.del_link(netlink::LinkID::ID(link.header.index))
                             {
-                                error!(
-                                    "failed to delete tmp {} link {}: {}",
-                                    kind_data, tmp_name, err
-                                );
+                                error!("failed to delete tmp {kind_data} link {tmp_name}: {err}");
                             };
                         })?;
 
@@ -332,8 +329,7 @@ fn setup(
         }
     }
 
-    exec_netns!(hostns_fd, netns_fd, res, { disable_ipv6_autoconf(if_name) });
-    res?; // return autoconf sysctl error
+    exec_netns!(hostns_fd, netns_fd, { disable_ipv6_autoconf(if_name) })?;
 
     let dev = netns
         .get_link(netlink::LinkID::Name(if_name.to_string()))
@@ -359,38 +355,4 @@ fn setup(
     }
 
     get_mac_address(dev.attributes)
-}
-
-fn get_default_route_interface(host: &mut netlink::Socket) -> NetavarkResult<String> {
-    let routes = host.dump_routes().wrap("dump routes")?;
-
-    for route in routes {
-        let mut dest = false;
-        let mut out_if = 0;
-        for nla in route.attributes {
-            if let netlink_packet_route::route::RouteAttribute::Destination(_) = nla {
-                dest = true;
-            }
-            if let netlink_packet_route::route::RouteAttribute::Oif(oif) = nla {
-                out_if = oif;
-            }
-        }
-
-        // if there is no dest we have a default route
-        // return the output interface for this route
-        if !dest && out_if > 0 {
-            let link = host.get_link(netlink::LinkID::ID(out_if))?;
-            let name = link.attributes.iter().find_map(|nla| {
-                if let LinkAttribute::IfName(name) = nla {
-                    Some(name)
-                } else {
-                    None
-                }
-            });
-            if let Some(name) = name {
-                return Ok(name.to_owned());
-            }
-        }
-    }
-    Err(NetavarkError::msg("failed to get default route interface"))
 }

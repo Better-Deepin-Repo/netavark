@@ -2,21 +2,20 @@ use crate::error::{ErrorWrap, NetavarkError, NetavarkResult};
 use crate::network::{constants, internal_types, types};
 use crate::wrap;
 use ipnet::IpNet;
-use log::debug;
-use netlink_packet_route::link::{IpVlanMode, MacVlanMode};
+use netlink_packet_route::link::{IpVlanMode, LinkMessage, MacVlanMode};
 use nix::sched;
 use sha2::{Digest, Sha512};
 use std::collections::HashMap;
 use std::env;
 use std::fmt::Display;
 use std::fs::File;
-use std::io::{self, Error};
+use std::io;
 use std::net::IpAddr;
 use std::net::Ipv4Addr;
 use std::net::Ipv6Addr;
 use std::os::unix::prelude::*;
+use std::path::Path;
 use std::str::FromStr;
-use sysctl::{Sysctl, SysctlError};
 
 use super::netlink;
 
@@ -64,7 +63,7 @@ where
 pub fn get_ipam_addresses<'a>(
     per_network_opts: &'a types::PerNetworkOptions,
     network: &'a types::Network,
-) -> Result<internal_types::IPAMAddresses, std::io::Error> {
+) -> NetavarkResult<internal_types::IPAMAddresses> {
     let addresses = match network
         .ipam_options
         .as_ref()
@@ -86,12 +85,7 @@ pub fn get_ipam_addresses<'a>(
             let mut nameservers: Vec<IpAddr> = Vec::new();
 
             let static_ips = match per_network_opts.static_ips.as_ref() {
-                None => {
-                    return Err(std::io::Error::new(
-                        std::io::ErrorKind::Other,
-                        "no static ips provided",
-                    ))
-                }
+                None => return Err(NetavarkError::msg("no static ips provided")),
                 Some(i) => i,
             };
 
@@ -102,10 +96,9 @@ pub fn get_ipam_addresses<'a>(
                     let gw_net = match ipnet::IpNet::new(gw, subnet_mask_cidr) {
                         Ok(dest) => dest,
                         Err(err) => {
-                            return Err(std::io::Error::new(
-                                std::io::ErrorKind::Other,
-                                format!("failed to parse address {gw}/{subnet_mask_cidr}: {err}"),
-                            ))
+                            return Err(NetavarkError::msg(format!(
+                                "failed to parse address {gw}/{subnet_mask_cidr}: {err}"
+                            )))
                         }
                     };
                     gateway_addresses.push(gw_net);
@@ -122,7 +115,7 @@ pub fn get_ipam_addresses<'a>(
                     match format!("{}/{}", static_ips[idx], subnet_mask_cidr).parse() {
                         Ok(i) => i,
                         Err(e) => {
-                            return Err(Error::new(std::io::ErrorKind::Other, e));
+                            return Err(NetavarkError::SubnetParse(e));
                         }
                     };
                 // Add the IP to the address_vector
@@ -136,7 +129,7 @@ pub fn get_ipam_addresses<'a>(
             let routes: Vec<netlink::Route> = match create_route_list(&network.routes) {
                 Ok(r) => r,
                 Err(e) => {
-                    return Err(Error::new(std::io::ErrorKind::Other, e));
+                    return Err(e);
                 }
             };
 
@@ -172,10 +165,9 @@ pub fn get_ipam_addresses<'a>(
             nameservers: vec![],
         },
         Some(driver) => {
-            return Err(std::io::Error::new(
-                std::io::ErrorKind::Other,
-                format!("unsupported ipam driver {driver}"),
-            ));
+            return Err(NetavarkError::msg(format!(
+                "unsupported ipam driver {driver}"
+            )));
         }
     };
 
@@ -193,7 +185,7 @@ impl CoreUtils {
         address
     }
 
-    pub fn decode_address_from_hex(input: &str) -> Result<Vec<u8>, std::io::Error> {
+    pub fn decode_address_from_hex(input: &str) -> NetavarkResult<Vec<u8>> {
         let bytes: Result<Vec<u8>, _> = input
             .split([':', '-'])
             .map(|b| u8::from_str_radix(b, 16))
@@ -202,18 +194,16 @@ impl CoreUtils {
         let result = match bytes {
             Ok(bytes) => {
                 if bytes.len() != 6 {
-                    return Err(std::io::Error::new(
-                        std::io::ErrorKind::Other,
-                        format!("invalid mac length for address: {input}"),
-                    ));
+                    return Err(NetavarkError::msg(format!(
+                        "invalid mac length for address: {input}"
+                    )));
                 }
                 bytes
             }
             Err(e) => {
-                return Err(std::io::Error::new(
-                    std::io::ErrorKind::Other,
-                    format!("unable to parse mac address {input}: {e}"),
-                ));
+                return Err(NetavarkError::msg(format!(
+                    "unable to parse mac address {input}: {e}"
+                )));
             }
         };
 
@@ -255,26 +245,6 @@ impl CoreUtils {
         let response = &hash_string[0..length];
         response.to_string()
     }
-
-    /// Set a sysctl value by value's namespace.
-    pub fn apply_sysctl_value(
-        ns_value: impl AsRef<str>,
-        val: impl AsRef<str>,
-    ) -> Result<String, SysctlError> {
-        let ns_value = ns_value.as_ref();
-        let val = val.as_ref();
-        debug!("Setting sysctl value for {} to {}", ns_value, val);
-        let ctl = sysctl::Ctl::new(ns_value)?;
-        match ctl.value_string() {
-            Ok(result) => {
-                if result == val {
-                    return Ok(result);
-                }
-            }
-            Err(e) => return Err(e),
-        }
-        ctl.set_value_string(val)
-    }
 }
 
 pub fn join_netns<Fd: AsFd>(fd: Fd) -> NetavarkResult<()> {
@@ -289,15 +259,15 @@ pub fn join_netns<Fd: AsFd>(fd: Fd) -> NetavarkResult<()> {
 
 /// safe way to join the namespace and join back to the host after the task is done
 /// This first arg should be the hostns fd, the second is the container ns fd.
-/// The third is the result variable name and the last the closure that should be
-/// executed in the ns.
+/// The third and last the closure that should be executed in the ns.
 #[macro_export]
 macro_rules! exec_netns {
-    ($host:expr, $netns:expr, $result:ident, $exec:expr) => {
+    ($host:expr, $netns:expr, $exec:expr) => {{
         join_netns($netns)?;
-        let $result = $exec;
+        let result = $exec;
         join_netns($host)?;
-    };
+        result
+    }};
 }
 
 pub struct NamespaceOptions {
@@ -314,14 +284,12 @@ pub fn open_netlink_sockets(
     let hostns = open_netlink_socket("/proc/self/ns/net").wrap("open host netns")?;
 
     let host_socket = netlink::Socket::new().wrap("host netlink socket")?;
-    exec_netns!(
+    let netns_sock = exec_netns!(
         hostns.as_fd(),
         netns.as_fd(),
-        res,
         netlink::Socket::new().wrap("netns netlink socket")
-    );
+    )?;
 
-    let netns_sock = res?;
     Ok((
         NamespaceOptions {
             file: hostns,
@@ -413,31 +381,6 @@ pub fn create_route_list(
     }
 }
 
-pub fn disable_ipv6_autoconf(if_name: &str) -> NetavarkResult<()> {
-    // make sure autoconf is off, we want manual config only
-    if let Err(err) =
-        CoreUtils::apply_sysctl_value(format!("/proc/sys/net/ipv6/conf/{if_name}/autoconf"), "0")
-    {
-        match err {
-            SysctlError::NotFound(_) => {
-                // if the sysctl is not found we likely run on a system without ipv6
-                // just ignore that case
-            }
-
-            // if we have a read only /proc we ignore it as well
-            SysctlError::IoError(ref e) if e.raw_os_error() == Some(libc::EROFS) => {}
-
-            _ => {
-                return Err(NetavarkError::wrap(
-                    "failed to set autoconf sysctl",
-                    NetavarkError::Sysctl(err),
-                ));
-            }
-        }
-    };
-    Ok(())
-}
-
 pub fn get_mac_address(v: Vec<LinkAttribute>) -> NetavarkResult<String> {
     for nla in v.into_iter() {
         if let LinkAttribute::Address(ref addr) = nla {
@@ -446,5 +389,47 @@ pub fn get_mac_address(v: Vec<LinkAttribute>) -> NetavarkResult<String> {
     }
     Err(NetavarkError::msg(
         "failed to get the the container mac address",
+    ))
+}
+
+/// check if systemd is booted, see sd_booted(3)
+pub fn is_using_systemd() -> bool {
+    Path::new("/run/systemd/system").exists()
+}
+
+/// Returns the *first* interface with a default route or an error if no default route interface exists.
+pub fn get_default_route_interface(host: &mut netlink::Socket) -> NetavarkResult<LinkMessage> {
+    let routes = host.dump_routes().wrap("dump routes")?;
+
+    for route in routes {
+        let mut dest = false;
+        let mut out_if = 0;
+        for nla in route.attributes {
+            if let netlink_packet_route::route::RouteAttribute::Destination(_) = nla {
+                dest = true;
+            }
+            if let netlink_packet_route::route::RouteAttribute::Oif(oif) = nla {
+                out_if = oif;
+            }
+        }
+
+        // if there is no dest we have a default route
+        // return the output interface for this route
+        if !dest && out_if > 0 {
+            return host.get_link(netlink::LinkID::ID(out_if));
+        }
+    }
+    Err(NetavarkError::msg("failed to get default route interface"))
+}
+
+pub fn get_mtu_from_iface_attributes(attributes: &[LinkAttribute]) -> NetavarkResult<u32> {
+    for nla in attributes.iter() {
+        if let LinkAttribute::Mtu(mtu) = nla {
+            return Ok(*mtu);
+        }
+    }
+    // It should be impossible that the interface has no MTU set, so return an error in such case.
+    Err(NetavarkError::msg(
+        "no MTU attribute in netlink message, possible kernel issue",
     ))
 }

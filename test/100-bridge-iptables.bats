@@ -590,7 +590,7 @@ fw_driver=iptables
     assert "2" "rp_filter eth1 interface"
 
     # Important: Use the "host" ip here and not localhost or bridge ip.
-    run_nc_test "0" "tcp" 8080 "10.0.0.1" 8080
+    run_connection_test "0" "tcp" 8080 "10.0.0.1" 8080
 }
 
 @test "bridge ipam none" {
@@ -668,7 +668,7 @@ EOF
 EOF
 
     expected_rc=1 run_netavark setup $(get_container_netns_path) <<<"$config"
-    assert_json ".error" "IO error: unsupported ipam driver someDriver" "Driver is not supported error"
+    assert_json ".error" "unsupported ipam driver someDriver" "Driver is not supported error"
 }
 
 @test "$fw_driver - isolate networks" {
@@ -829,6 +829,7 @@ EOF
     run_in_host_netns sh -c "echo 1 > /proc/sys/net/ipv4/ip_forward"
     run_in_container_netns sh -c "echo 1 > /proc/sys/net/ipv4/conf/default/arp_notify"
     run_in_host_netns sh -c "echo 2 > /proc/sys/net/ipv4/conf/default/rp_filter"
+    run_in_host_netns sh -c "echo 1 > /proc/sys/net/ipv4/conf/default/route_localnet"
     run_in_container_netns sh -c "echo 2 > /proc/sys/net/ipv4/conf/default/rp_filter"
     run_in_host_netns mount -t proc -o ro,nosuid,nodev,noexec proc /proc
 
@@ -840,7 +841,7 @@ EOF
     run_in_host_netns mount -t proc -o remount,ro /proc
 
     expected_rc=1 run_netavark --file ${TESTSDIR}/testfiles/simplebridge.json setup $(get_container_netns_path)
-    assert_json ".error" "Sysctl error: IO Error: Read-only file system (os error 30)" "Sysctl error because fs is read only"
+    assert_json ".error" "set sysctl net/ipv4/ip_forward: IO error: Read-only file system (os error 30)" "Sysctl error because fs is read only"
 }
 
 
@@ -1095,7 +1096,7 @@ function check_simple_bridge_iptables() {
 
 @test "$fw_driver - aardvark-dns error cleanup" {
     expected_rc=1 run_netavark -a /usr/bin/false --file ${TESTSDIR}/testfiles/dualstack-bridge-custom-dns-server.json setup $(get_container_netns_path)
-    assert_json ".error" "error while applying dns entries: IO error: aardvark-dns exited unexpectedly without error message" "aardvark-dns error"
+    assert_json ".error" "error while applying dns entries: aardvark-dns exited unexpectedly without error message" "aardvark-dns error"
     run_in_host_netns iptables -S
     assert "$output" !~ "10.89.3.0/24" "leaked network iptables rules after setup error"
     run_in_host_netns iptables -S -t nat
