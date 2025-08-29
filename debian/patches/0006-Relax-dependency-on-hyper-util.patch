@@ -1,0 +1,21 @@
+From: Reinhard Tartler <siretart@tauware.de>
+Date: Thu, 28 Aug 2025 16:04:50 -0400
+Subject: Relax dependency on hyper-util
+
+---
+ Cargo.toml | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/Cargo.toml b/Cargo.toml
+index 0d4d27d..82d18c5 100644
+--- a/Cargo.toml
++++ b/Cargo.toml
+@@ -60,7 +60,7 @@ futures-channel = "0.3.31"
+ futures-core = "0.3.31"
+ futures-util = "0.3.31"
+ tower = { version = "0.5.2", features = ["util"] }
+-hyper-util = "0.1.16"
++hyper-util = "0.1.10"
+ 
+ [build-dependencies]
+ chrono = { version = "0.4.41", default-features = false, features = ["clock"] }

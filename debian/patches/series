@@ -3,3 +3,10 @@
 0013-compile-against-prost-12.6.patch
 0004-Relax-dependency-on-clap.patch
 0005-Relax-dependency-on-env_logger.patch
+0006-Relax-dependency-on-hyper-util.patch
+0007-relax-depedency-on-log.patch
+0008-Relax-mozim.patch
+0009-Relax-dependency-on-netlink-packet-route.patch
+0010-Relax-dependency-on-nftables-0.5.patch
+0011-Relax-dependency-on-nix.patch
+0012-Relax-dependency-on-Rand.patch
