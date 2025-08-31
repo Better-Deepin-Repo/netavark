@@ -7,11 +7,11 @@ Subject: Relax dependency on nftables 0.5
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/Cargo.toml b/Cargo.toml
-index 4f2dfe6..66f1852 100644
+index 93c567d..118a9ad 100644
 --- a/Cargo.toml
 +++ b/Cargo.toml
 @@ -49,7 +49,7 @@ sha2 = "0.10.9"
- netlink-packet-route = "0.19.0"
+ netlink-packet-route = "0.23.0"
  netlink-packet-core = "0.7.0"
  netlink-sys = ">= 0.5"
 -nftables = "0.6.3"
