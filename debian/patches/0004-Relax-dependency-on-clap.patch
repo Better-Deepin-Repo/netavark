@@ -7,7 +7,7 @@ Subject: Relax dependency on clap
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/Cargo.toml b/Cargo.toml
-index 14a6144..3aa6a1f 100644
+index d4bc5dc..a632083 100644
 --- a/Cargo.toml
 +++ b/Cargo.toml
 @@ -34,7 +34,7 @@ path = "src/test/main.rs"

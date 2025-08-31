@@ -3,14 +3,15 @@ Date: Fri, 29 Aug 2025 07:33:20 -0400
 Subject: Relax dependency on nix
 
 ---
- Cargo.toml | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ Cargo.toml       | 2 +-
+ src/test/main.rs | 8 ++++----
+ 2 files changed, 5 insertions(+), 5 deletions(-)
 
 diff --git a/Cargo.toml b/Cargo.toml
-index 118a9ad..0bb23c4 100644
+index 9b9f2f2..a39ce93 100644
 --- a/Cargo.toml
 +++ b/Cargo.toml
-@@ -43,7 +43,7 @@ log = "0.4.26"
+@@ -43,7 +43,7 @@ log = "0.4.27"
  serde = { version = "1.0.219", features = ["derive"] }
  serde_json = "1.0.142"
  zbus = { version = "5.9.0" }
@@ -19,3 +20,22 @@ index 118a9ad..0bb23c4 100644
  rand = "0.9.2"
  sha2 = "0.10.9"
  netlink-packet-route = "0.23.0"
+diff --git a/src/test/main.rs b/src/test/main.rs
+index 9b4d6d2..18638ae 100644
+--- a/src/test/main.rs
++++ b/src/test/main.rs
+@@ -30,10 +30,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
+                 protocol = socket::SockProtocol::Udp;
+                 sock_type = socket::SockType::Datagram;
+             }
+-            "--sctp" => {
+-                protocol = socket::SockProtocol::Sctp;
+-                sock_type = socket::SockType::Stream;
+-            }
++            // "--sctp" => {
++            //     protocol = socket::SockProtocol::Sctp;
++            //     sock_type = socket::SockType::Stream;
++            // }
+             _ => {
+                 match i {
+                     0 => netns = arg,
