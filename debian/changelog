@@ -1,13 +1,13 @@
-netavark (1.16.1-1) UNRELEASED; urgency=medium
+netavark (1.16.1-1) experimental; urgency=medium
 
   * New upstream release 1.16
   * Refresh patches
     - Relax dependency on clap, env_logger, hyper-util, nix, sysctl, rand,
       prost, zbus, chronos
     - build against netlink-packet-route 0.23
-  * build against nftables in experimental
+  * build against nftables in experimental, Closes: #1112210
 
- -- Reinhard Tartler <siretart@tauware.de>  Mon, 01 Sep 2025 10:50:40 -0400
+ -- Reinhard Tartler <siretart@tauware.de>  Mon, 01 Sep 2025 11:36:37 -0400
 
 netavark (1.14.0-2) unstable; urgency=medium
 
