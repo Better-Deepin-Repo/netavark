@@ -7,7 +7,7 @@ Subject: Relax dependency on hyper-util
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/Cargo.toml b/Cargo.toml
-index 9562c69..9b9f2f2 100644
+index 913044c..5cc4c99 100644
 --- a/Cargo.toml
 +++ b/Cargo.toml
 @@ -60,7 +60,7 @@ futures-channel = "0.3.31"

@@ -7,7 +7,7 @@ Subject: compile against prost 12.6
  1 file changed, 3 insertions(+), 3 deletions(-)
 
 diff --git a/Cargo.toml b/Cargo.toml
-index 4151dbf..f55f6cb 100644
+index 81808ae..da32ec5 100644
 --- a/Cargo.toml
 +++ b/Cargo.toml
 @@ -53,9 +53,9 @@ nftables = "0.6.3"

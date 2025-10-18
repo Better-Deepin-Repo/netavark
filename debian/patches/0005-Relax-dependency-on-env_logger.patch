@@ -7,7 +7,7 @@ Subject: Relax dependency on env_logger
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/Cargo.toml b/Cargo.toml
-index a632083..9562c69 100644
+index 1583bc3..913044c 100644
 --- a/Cargo.toml
 +++ b/Cargo.toml
 @@ -35,7 +35,7 @@ path = "src/test/main.rs"

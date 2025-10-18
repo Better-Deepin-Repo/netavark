@@ -8,7 +8,7 @@ This reverts commit dccb834a7c4a9ad3e716f18653e4da9f8e12a9a8.
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/Cargo.toml b/Cargo.toml
-index 415f37c..d4bc5dc 100644
+index 5cc4c99..9b9f2f2 100644
 --- a/Cargo.toml
 +++ b/Cargo.toml
 @@ -48,7 +48,7 @@ rand = "0.9.2"

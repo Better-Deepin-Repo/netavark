@@ -3,7 +3,6 @@
 0005-Relax-dependency-on-env_logger.patch
 0006-Relax-dependency-on-hyper-util.patch
 0010-Revert-fix-deps-update-rust-crate-sysctl-to-0.6.0.patch
-0011-Relax-dependency-on-nix.patch
 0012-Relax-dependency-on-Rand.patch
 0013-compile-against-prost-12.6.patch
 0014-Relax-dependency-on-zbus.patch
