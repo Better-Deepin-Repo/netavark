@@ -1,3 +1,10 @@
+netavark (1.16.1-3) unstable; urgency=medium
+
+  * salsa-ci: Disable reprotest
+  * Build against nix-0.30, Closes: #1116542
+
+ -- Reinhard Tartler <siretart@tauware.de>  Sat, 18 Oct 2025 05:48:04 -0400
+
 netavark (1.16.1-2) unstable; urgency=medium
 
   * Upload to unstable
