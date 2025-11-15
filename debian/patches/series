@@ -7,3 +7,4 @@
 0013-compile-against-prost-12.6.patch
 0014-Relax-dependency-on-zbus.patch
 0015-Relax-dependency-on-chrono.patch
+0016-varktables-remove-use-of-private-serde-type.patch

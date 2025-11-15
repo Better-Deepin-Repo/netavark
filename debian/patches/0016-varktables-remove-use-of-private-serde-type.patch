@@ -1,0 +1,28 @@
+From: Paul Holzinger <pholzing@redhat.com>
+Date: Thu, 6 Nov 2025 15:31:12 +0100
+Subject: varktables: remove use of private serde type
+
+The type can no longer be used. I hav eno idea why it was used here, we
+just return a normal Result so can use the default Rust Ok() here.
+
+Signed-off-by: Paul Holzinger <pholzing@redhat.com>
+---
+ src/firewall/varktables/helpers.rs | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/firewall/varktables/helpers.rs b/src/firewall/varktables/helpers.rs
+index c5c18a1..4e4d10d 100644
+--- a/src/firewall/varktables/helpers.rs
++++ b/src/firewall/varktables/helpers.rs
+@@ -58,9 +58,9 @@ fn chain_exists(driver: &IPTables, table: &str, chain: &str) -> NetavarkResult<b
+     };
+     if c.iter().any(|i| i == chain) {
+         debug_chain_exists(table, chain);
+-        return serde::__private::Result::Ok(true);
++        return Ok(true);
+     }
+-    serde::__private::Result::Ok(false)
++    Ok(false)
+ }
+ 
+ pub fn remove_if_rule_exists(
