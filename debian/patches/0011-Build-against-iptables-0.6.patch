@@ -6,13 +6,13 @@ Subject: Build against iptables 0.6
  Cargo.toml | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
 
-diff --git a/Cargo.toml b/Cargo.toml
-index 649e831..6625118 100644
---- a/Cargo.toml
-+++ b/Cargo.toml
+Index: netavark/Cargo.toml
+===================================================================
+--- netavark.orig/Cargo.toml
++++ netavark/Cargo.toml
 @@ -37,7 +37,7 @@ anyhow = "1.0.93"
- clap = { version = "~4.5.23", features = ["derive", "env"] }
- env_logger = "0.11.6"
+ clap = { version = "4.5", features = ["derive", "env"] }
+ env_logger = "0.11.8"
  ipnet = { version = "2.11.0", features = ["serde"] }
 -iptables = "0.5.2"
 +iptables = "0.6"

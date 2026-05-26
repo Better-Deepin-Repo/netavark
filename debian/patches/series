@@ -1,11 +1,6 @@
 0002-Allow-netavark-to-find-aardvark-dns-by-default.patch
 0004-Relax-dependency-on-clap.patch
-0005-Relax-dependency-on-env_logger.patch
-0006-Relax-dependency-on-hyper-util.patch
-0010-Revert-fix-deps-update-rust-crate-sysctl-to-0.6.0.patch
 0012-Relax-dependency-on-Rand.patch
 0013-compile-against-prost-12.6.patch
-0014-Relax-dependency-on-zbus.patch
-0015-Relax-dependency-on-chrono.patch
 0016-varktables-remove-use-of-private-serde-type.patch
 0011-Build-against-iptables-0.6.patch

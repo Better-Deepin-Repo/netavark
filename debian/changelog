@@ -1,3 +1,11 @@
+netavark (1.16.1-5) unstable; urgency=medium
+
+  * Relax dependency on clap to allow 4.6.1 (Closes: #1136770)
+  * Drop obsolete patches: 0005, 0006, 0010, 0014, 0015,
+    but keep 0013-compile-against-prost-12.6.patch (Related to #1102598)
+
+ -- Reinhard Tartler <siretart@tauware.de>  Mon, 25 May 2026 20:20:19 -0400
+
 netavark (1.16.1-4) unstable; urgency=medium
 
   * Compile against rust-iptables 0.6, Closes: #1134297
