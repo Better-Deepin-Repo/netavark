@@ -1,5 +1,24 @@
 # Release Notes
 
+## v1.17.2
+
+* Fixed a bug from v1.16.0 where the default mtu detection might consult the wrong routing table and as such pick the incorrect mtu. ([#1381](https://github.com/containers/netavark/issues/1381))
+* If the bridge driver is configured to use an vrf interface then pick the routing table from that vrf instead for the mtu detection.
+* Fixed a bug in the netlink code which may result in unexpected EINVAL errors due an incorrect netlink message serialization.
+
+## v1.17.1
+
+* Fixes a regression where the DHCP proxy would fail when no Renewal or Rebinding time was included in the DHCP message. ([#1368](https://github.com/containers/netavark/issues/1368))
+
+## v1.17.0
+
+* The dhcp proxy now sends DHCPRELEASE on container teardown. ([#1271](https://github.com/containers/netavark/issues/1271))
+* The bridge driver now correctly supports aardvark-dns in unmanaged mode and binds to the host interface ip addresses instead of the gateway. ([#1177](https://github.com/containers/netavark/issues/1177)
+* A new `firewall-reload` command has been added. This command reloads the netavark firewall configuration when executed then exits right away. This is useful to run after the host firewall got flushed to then restore connectivity for the containers without having to restart them. ([#1258](https://github.com/containers/netavark/issues/1258))
+* The MSRV has been bumped to v1.86.
+* Dependency updates.
+
+
 ## v1.16.1
 
 * Fixed an incompatibility with nftables 1.1.4 json output which broke the firewall rule generation. ([#1303](https://github.com/containers/netavark/issues/1303))
