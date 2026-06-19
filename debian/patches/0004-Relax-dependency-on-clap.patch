@@ -6,10 +6,10 @@ Subject: Relax dependency on clap
  Cargo.toml | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
 
-Index: netavark/Cargo.toml
-===================================================================
---- netavark.orig/Cargo.toml
-+++ netavark/Cargo.toml
+diff --git a/Cargo.toml b/Cargo.toml
+index 415f37c..3bad351 100644
+--- a/Cargo.toml
++++ b/Cargo.toml
 @@ -34,7 +34,7 @@ path = "src/test/main.rs"
  # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
  [dependencies]
