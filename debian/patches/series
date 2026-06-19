@@ -2,5 +2,4 @@
 0004-Relax-dependency-on-clap.patch
 0012-Relax-dependency-on-Rand.patch
 0013-compile-against-prost-12.6.patch
-0016-varktables-remove-use-of-private-serde-type.patch
 0011-Build-against-iptables-0.6.patch

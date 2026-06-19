@@ -7,15 +7,15 @@ Subject: Build against iptables 0.6
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/Cargo.toml b/Cargo.toml
-index 9ff24ae..48b781d 100644
+index 0e2d738..6ddbc00 100644
 --- a/Cargo.toml
 +++ b/Cargo.toml
 @@ -37,7 +37,7 @@ anyhow = "1.0.93"
  clap = { version = "4.5", features = ["derive", "env"] }
  env_logger = "0.11.8"
  ipnet = { version = "2.11.0", features = ["serde"] }
--iptables = "0.5.2"
+-iptables = "0.6.0"
 +iptables = "0.6"
  libc = "0.2.157"
- log = "0.4.27"
- serde = { version = "1.0.219", features = ["derive"] }
+ log = "0.4.28"
+ serde = { version = "1.0.228", features = ["derive"] }
