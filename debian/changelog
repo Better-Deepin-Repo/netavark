@@ -1,3 +1,9 @@
+netavark (1.17.2-1) unstable; urgency=medium
+
+  * New upstream release
+
+ -- Reinhard Tartler <siretart@tauware.de>  Fri, 19 Jun 2026 15:23:55 -0400
+
 netavark (1.16.1-5) unstable; urgency=medium
 
   * Relax dependency on clap to allow 4.6.1 (Closes: #1136770)
