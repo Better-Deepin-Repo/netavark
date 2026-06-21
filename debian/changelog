@@ -1,12 +1,10 @@
-netavark (1.17.2-2) UNRELEASED; urgency=medium
+netavark (1.17.2-2) unstable; urgency=medium
 
-  * drop path 0011
-  * compile against mozim 3
   * relax dependency on netlink-packet-route
   * Compile against mozim 3
   * Compile against netlink-packet-route 0.28
 
- -- Reinhard Tartler <siretart@tauware.de>  Sun, 21 Jun 2026 17:22:47 -0400
+ -- Reinhard Tartler <siretart@tauware.de>  Sun, 21 Jun 2026 18:19:06 -0400
 
 netavark (1.17.2-1) unstable; urgency=medium
 
