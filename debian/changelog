@@ -1,3 +1,9 @@
+netavark (1.17.2-3) UNRELEASED; urgency=medium
+
+  * debian/watch: use version 5
+
+ -- Reinhard Tartler <siretart@tauware.de>  Mon, 22 Jun 2026 05:58:44 -0400
+
 netavark (1.17.2-2) unstable; urgency=medium
 
   * relax dependency on netlink-packet-route
