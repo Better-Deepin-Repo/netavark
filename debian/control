@@ -3,8 +3,9 @@ Section: net
 Priority: optional
 Maintainer: Reinhard Tartler <siretart@tauware.de>
 Build-Depends: cargo:native <!nocheck>,
-               debhelper-compat (= 13),
+               debhelper-compat (= 14),
                dh-cargo (>= 25),
+               dh-sequence-single-binary,
                librust-anyhow-dev,
                librust-atty-dev,
                librust-chrono-dev,
@@ -54,7 +55,6 @@ Rules-Requires-Root: no
 
 Package: netavark
 Architecture: any
-Depends: ${misc:Depends}, ${shlibs:Depends}
 Provides: container-network-stack (= 2)
 Recommends: aardvark-dns, nftables
 Breaks: aardvark-dns (<< 1.12)
