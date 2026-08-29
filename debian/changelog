@@ -1,6 +1,9 @@
 netavark (1.17.2-3) UNRELEASED; urgency=medium
 
   * debian/watch: use version 5
+  * Upgrade to debhelper-compat (= 14).
+  * Build-depend on dh-sequence-single-binary.
+  * Drop redundant ${misc:Depends} and ${shlibs:Depends}.
 
  -- Reinhard Tartler <siretart@tauware.de>  Mon, 22 Jun 2026 05:58:44 -0400
 
