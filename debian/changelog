@@ -4,6 +4,11 @@ netavark (1.17.2-3) UNRELEASED; urgency=medium
   * Upgrade to debhelper-compat (= 14).
   * Build-depend on dh-sequence-single-binary.
   * Drop redundant ${misc:Depends} and ${shlibs:Depends}.
+  * Build against prost 0.14 and tonic 0.14 in unstable (Closes: #1145651).
+  * Drop obsolete patches:
+    - 0013-compile-against-prost-12.6.patch
+    - 0005-Compile-against-mozim-3.patch
+  * Update debian/control using debcargo update-dependencies.
 
  -- Reinhard Tartler <siretart@tauware.de>  Mon, 22 Jun 2026 05:58:44 -0400
 
