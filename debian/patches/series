@@ -1,6 +1,4 @@
 0002-Allow-netavark-to-find-aardvark-dns-by-default.patch
 0004-Relax-dependency-on-clap.patch
 0012-Relax-dependency-on-Rand.patch
-0013-compile-against-prost-12.6.patch
-0005-Compile-against-mozim-3.patch
 0006-Compile-against-netlink-packet-route-0.28.patch

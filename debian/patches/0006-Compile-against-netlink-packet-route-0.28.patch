@@ -7,7 +7,7 @@ Subject: Compile against netlink-packet-route 0.28
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/Cargo.toml b/Cargo.toml
-index 9a2c967..4ea3159 100644
+index 9830e9a..f7fc1b0 100644
 --- a/Cargo.toml
 +++ b/Cargo.toml
 @@ -46,7 +46,7 @@ zbus = { version = "5.12.0" }
