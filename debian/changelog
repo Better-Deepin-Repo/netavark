@@ -1,4 +1,4 @@
-netavark (1.17.2-3) UNRELEASED; urgency=medium
+netavark (1.17.2-3) unstable; urgency=medium
 
   * debian/watch: use version 5
   * Upgrade to debhelper-compat (= 14).
@@ -10,7 +10,7 @@ netavark (1.17.2-3) UNRELEASED; urgency=medium
     - 0005-Compile-against-mozim-3.patch
   * Update debian/control using debcargo update-dependencies.
 
- -- Reinhard Tartler <siretart@tauware.de>  Mon, 22 Jun 2026 05:58:44 -0400
+ -- Reinhard Tartler <siretart@tauware.de>  Mon, 14 Sep 2026 11:55:29 -0400
 
 netavark (1.17.2-2) unstable; urgency=medium
 
