@@ -1,27 +1,62 @@
 #!/usr/bin/make -f
+#
+# Cargo application package following the "manual wrapper approach" from
+# the Debian Rust Team book, mirroring the Better Deepin scx source
+# package: Cargo is invoked directly, dh-cargo is not used.
+#
+# Rust dependency sourcing (Better Deepin scheme):
+#   debian/control deliberately carries no crate (librust-*-dev) build
+#   dependencies.  Instead, the configure step runs debian/fetch-vendor.sh,
+#   which downloads every crate pinned by Cargo.lock from crates.io into
+#   ./vendor - the single, explicitly scripted online step of the build
+#   (the Better-Deepin OBS builder allows network access at build time).
+#   debian/cargo-config.toml is then rendered into $CARGO_HOME/config.toml
+#   (the upstream .cargo/config.toml with its test runner stays untouched),
+#   replacing crates-io with ./vendor and setting [net] offline, so the
+#   actual `cargo build` resolves and compiles fully offline and never
+#   touches the network.  Crate sources come from crates.io, not from
+#   Debian packages, hence no Built-Using / Static-Built-Using is recorded.
 
 # cf. https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1091318
 export NETAVARK_DEFAULT_FW := nftables
 
-# generate cargo-checksum file
-_mkchecksum = printf '{"package":"%s","files":{}}\n' \
- $$(sha256sum $(or $2,$(dir $1)Cargo.toml) | grep -Po '^\S+') > $1;
+export CARGO_HOME = $(CURDIR)/debian/cargo_home
 
 %:
-	dh $@ --buildsystem cargo
+	dh $@
 
-execute_before_dh_auto_configure:
-	$(call _mkchecksum,debian/cargo-checksum.json,Cargo.toml)
+# The only networked step: script pre-fetch all locked crates into
+# ./vendor, then point cargo's [source.crates-io] replacement at that tree
+# and turn offline mode on for everything that follows.  Overriding (not
+# "execute_before") dh_auto_configure also keeps debhelper from picking
+# the upstream Makefile as buildsystem.
+override_dh_auto_configure:
+	debian/fetch-vendor.sh
+	mkdir -p $(CARGO_HOME)
+	sed -e 's#@VENDOR_DIR@#$(CURDIR)/vendor#' debian/cargo-config.toml > $(CARGO_HOME)/config.toml
 
-execute_after_dh_install:
-	mkdir -vp debian/netavark/usr/lib debian/netavark/usr/lib/systemd/system
-	mv -v debian/netavark/usr/bin debian/netavark/usr/lib/podman
-	install -D -m 664  contrib/systemd/system/netavark-dhcp-proxy.socket \
-		debian/netavark/usr/lib/systemd/system
+override_dh_auto_build:
+	cargo build --release
+
+# The unit tests create network namespaces and bridges (upstream runs
+# them under `unshare -rn`) and the bats suite needs a live container
+# capable host, cf. https://github.com/containers/netavark/issues/984;
+# the shipped autopkgtest runs those suites on real machines instead.
+override_dh_auto_test:
+	@echo "I: skipping cargo test suite (requires network namespaces)"
+
+override_dh_auto_install:
+	install -Dm755 target/release/netavark $(CURDIR)/debian/netavark/usr/lib/podman/netavark
+	# systemd units (dh_installsystemd handles start/stop through
+	# [Install]; paths per Debian: /usr/lib/podman, not /usr/libexec)
+	install -Dm664 contrib/systemd/system/netavark-dhcp-proxy.socket \
+		$(CURDIR)/debian/netavark/usr/lib/systemd/system/netavark-dhcp-proxy.socket
 	sed -e 's;@@NETAVARK@@;/usr/lib/podman/netavark;g' \
 		< contrib/systemd/system/netavark-dhcp-proxy.service.in \
-		> debian/netavark/usr/lib/systemd/system/netavark-dhcp-proxy.service
+		> $(CURDIR)/debian/netavark/usr/lib/systemd/system/netavark-dhcp-proxy.service
 	sed -e 's;@@NETAVARK@@;/usr/lib/podman/netavark;g' \
 		< contrib/systemd/system/netavark-firewalld-reload.service.in \
-		> debian/netavark/usr/lib/systemd/system/netavark-firewalld-reload.service
+		> $(CURDIR)/debian/netavark/usr/lib/systemd/system/netavark-firewalld-reload.service
 
+override_dh_auto_clean:
+	rm -rf target vendor debian/cargo_home

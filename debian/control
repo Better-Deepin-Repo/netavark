@@ -2,60 +2,19 @@ Source: netavark
 Section: net
 Priority: optional
 Maintainer: Reinhard Tartler <siretart@tauware.de>
-Build-Depends: cargo:native <!nocheck>,
-               debhelper-compat (= 14),
-               dh-cargo (>= 25),
+# No librust-*-dev crate build-dependencies on purpose: all crates are
+# vendored from crates.io at build time (see debian/rules and
+# debian/fetch-vendor.sh), because deepin's packaged crate versions are
+# too old for netavark.  protobuf-compiler is a plain C++ tool needed by
+# the vendored prost-build 0.14 for build.rs (>= 3.15): on sid it came
+# in transitively via librust-prost-build-dev, with vendored crates apt
+# no longer pulls it in, so it must be declared explicitly.
+Build-Depends: debhelper-compat (= 14),
                dh-sequence-single-binary,
-               librust-anyhow-1+default-dev (>= 1.0.93),
-               librust-chrono-0.4+clock-dev (>= 0.4.42),
-               librust-clap-4+default-dev (>= 4.5),
-               librust-clap-4+derive-dev (>= 4.5),
-               librust-clap-4+env-dev (>= 4.5),
-               librust-env-logger-0.11+default-dev (>= 0.11.8),
-               librust-fs2-0.4+default-dev (>= 0.4.3),
-               librust-futures-channel-0.3+default-dev (>= 0.3.31),
-               librust-futures-core-0.3+default-dev (>= 0.3.31),
-               librust-futures-util-0.3+default-dev (>= 0.3.31),
-               librust-hyper-util-0.1+default-dev (>= 0.1.17),
-               librust-ipnet-2+default-dev (>= 2.11.0),
-               librust-ipnet-2+serde-dev (>= 2.11.0),
-               librust-iptables-0.6+default-dev,
-               librust-libc-0.2+default-dev (>= 0.2.157),
-               librust-log-0.4+default-dev (>= 0.4.28),
-               librust-mozim-0.3+default-dev (>= 0.3.1),
-               librust-netlink-packet-core-0.8+default-dev (>= 0.8.1),
-               librust-netlink-packet-route-0.28+default-dev,
-               librust-netlink-sys-0.8+default-dev (>= 0.8.7),
-               librust-nftables-0.6+default-dev (>= 0.6.3),
-               librust-nix-0.30+default-dev (>= 0.30.1),
-               librust-nix-0.30+net-dev (>= 0.30.1),
-               librust-nix-0.30+sched-dev (>= 0.30.1),
-               librust-nix-0.30+signal-dev (>= 0.30.1),
-               librust-nix-0.30+socket-dev (>= 0.30.1),
-               librust-nix-0.30+user-dev (>= 0.30.1),
-               librust-prost-0.14+default-dev (>= 0.14.1),
-               librust-rand-0.8+default-dev (>= 0.8.5),
-               librust-serde-1+default-dev (>= 1.0.228),
-               librust-serde-1+derive-dev (>= 1.0.228),
-               librust-serde-json-1+default-dev (>= 1.0.145),
-               librust-sha2-0.10+default-dev (>= 0.10.9),
-               librust-tokio-1+default-dev (>= 1.48.0),
-               librust-tokio-1+fs-dev (>= 1.48.0),
-               librust-tokio-1+rt-dev (>= 1.48.0),
-               librust-tokio-1+rt-multi-thread-dev (>= 1.48.0),
-               librust-tokio-1+signal-dev (>= 1.48.0),
-               librust-tokio-1+time-dev (>= 1.48.0),
-               librust-tokio-stream-0.1+default-dev (>= 0.1.17),
-               librust-tokio-stream-0.1+net-dev (>= 0.1.17),
-               librust-tonic-0.14+default-dev (>= 0.14.2),
-               librust-tonic-prost-0.14+default-dev (>= 0.14.2),
-               librust-tonic-prost-build-0.14+default-dev (>= 0.14.2),
-               librust-tower-0.5+default-dev (>= 0.5.2),
-               librust-tower-0.5+util-dev (>= 0.5.2),
-               librust-zbus-5+default-dev (>= 5.12.0),
-               libstd-rust-dev,
-               rustc:native (>= 1.86) <!nocheck>
-Build-Conflicts: librust-zbus-1-dev
+               cargo:native <!nocheck>,
+               rustc:native (>= 1.86) <!nocheck>,
+               libstd-rust-dev <!nocheck>,
+               protobuf-compiler <!nocheck>
 Standards-Version: 4.7.2
 Homepage: https://github.com/containers/netavark
 Vcs-Browser: https://salsa.debian.org/debian/netavark

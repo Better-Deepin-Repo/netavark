@@ -1,0 +1,16 @@
+# Written to $CARGO_HOME/config.toml by debian/rules (with @VENDOR_DIR@
+# replaced by the absolute path of the vendored crate tree), so the
+# project's own .cargo/config.toml (upstream test runner) stays untouched.
+#
+# This makes the actual `cargo build` resolve every crate from ./vendor
+# and refuse any network access; ./vendor is populated beforehand by
+# debian/fetch-vendor.sh (the deliberately online pre-fetch step).
+
+[source.crates-io]
+replace-with = "vendored-sources"
+
+[source.vendored-sources]
+directory = "@VENDOR_DIR@"
+
+[net]
+offline = true

@@ -9,3 +9,4 @@ vendor-tarball/
 .idea/*
 contrib/systemd/*/*.service
 .vscode*
+debian/cargo_home/
